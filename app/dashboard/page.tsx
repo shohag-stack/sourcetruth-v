@@ -4,6 +4,7 @@ import { RevenueAreaChart } from '@/components/charts/RevenueAreaChart'
 import { DUMMY_OVERVIEW, DUMMY_POSTS, DUMMY_CHANNEL_STATS, DUMMY_REVENUE_EVENTS, PLATFORM_META, PAYMENT_META } from '@/lib/dummy-data'
 import { formatMoney, formatMoneyFull, formatNumber, timeAgo, trendLabel } from '@/lib/utils'
 import Link from 'next/link'
+import { SocialChannel } from '@/types/posts'
 
 export default function DashboardPage() {
   const publishedPosts = DUMMY_POSTS.filter(p => p.status === 'published')
@@ -45,7 +46,7 @@ export default function DashboardPage() {
                 <div className="text-[11px] font-bold text-[#6366F1] uppercase tracking-widest mb-2">⭐ Best performing post</div>
                 <p className="text-[13px] text-[#475569] line-clamp-2 mb-2">{topPost.content}</p>
                 <div className="flex items-center gap-3 flex-wrap">
-                  {topPost.channels.map(ch => (
+                  {topPost.channels.map((ch: SocialChannel) => (
                     <span key={ch} className="text-[11px] text-[#94A3B8]">{PLATFORM_META[ch].name}</span>
                   ))}
                   <span className="text-[#E8ECF2]">·</span>
