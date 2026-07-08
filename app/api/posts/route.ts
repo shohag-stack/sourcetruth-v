@@ -1,0 +1,56 @@
+// app/api/posts/route.ts
+import { createClient } from '@/utils/supabase/server'
+import { NextResponse } from 'next/server'
+import { customAlphabet } from 'nanoid'
+
+const nanoid = customAlphabet('abcdefghijklmnopqrstuvwxyz0123456789', 7)
+
+export async function POST(request: Request) {
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+
+  const { content, channel, destination, campaign, site_id } = await request.json()
+  if (!content || !channel || !destination || !site_id) {
+    return NextResponse.json({ error: 'content, channel, destination, site_id required' }, { status: 400 })
+  }
+
+  const slug = nanoid()
+  const url = new URL(destination)
+  url.searchParams.set('st', slug)
+  const tracked_link = url.toString() // real destination, not a redirect domain — per your trust-issue call
+
+  const { data, error } = await supabase
+    .from('posts')
+    .insert({
+      user_id: user.id,
+      site_id,
+      content,
+      channel,
+      destination,
+      campaign,
+      slug,
+      tracked_link,
+      status: 'ready',
+    })
+    .select()
+    .single()
+
+  if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+  return NextResponse.json(data)
+}
+
+export async function GET() {
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+
+  const { data, error } = await supabase
+    .from('posts')
+    .select('*')
+    .eq('user_id', user.id)
+    .order('created_at', { ascending: false })
+
+  if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+  return NextResponse.json(data)
+}

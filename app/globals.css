@@ -1,0 +1,133 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --white: #ffffff;
+    --surface: #F8F9FC;
+    --surface-2: #F1F4F9;
+    --border: #E8ECF2;
+    --border-strong: #D1D9E6;
+    --text-primary: #0F172A;
+    --text-secondary: #475569;
+    --text-muted: #94A3B8;
+    --indigo: #6366F1;
+    --indigo-light: #EEF2FF;
+    --indigo-mid: #C7D2FE;
+    --emerald: #10B981;
+    --emerald-light: #ECFDF5;
+    --amber: #F59E0B;
+    --amber-light: #FFFBEB;
+    --red: #EF4444;
+    --red-light: #FEF2F2;
+  }
+
+  * { @apply border-[#E8ECF2]; }
+
+  body {
+    color: var(--text-primary);
+    background: var(--white);
+    font-feature-settings: 'cv11', 'ss01';
+  }
+
+  /* Tabular numbers for data */
+  .tabular { font-variant-numeric: tabular-nums; }
+
+  ::-webkit-scrollbar { width: 4px; height: 4px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb { background: #D1D9E6; border-radius: 99px; }
+}
+
+@layer components {
+  /* Cards */
+  .card {
+    @apply bg-white border border-[#E8ECF2] rounded-2xl;
+  }
+
+  .card-surface {
+    @apply bg-[#F8F9FC] border border-[#E8ECF2] rounded-2xl;
+  }
+
+  /* Buttons */
+  .btn-primary {
+    @apply bg-[#6366F1] hover:bg-[#4F46E5] text-white font-medium rounded-xl px-4 py-2.5 text-sm transition-all duration-150 shadow-sm hover:shadow-md;
+  }
+
+  .btn-secondary {
+    @apply bg-white hover:bg-[#F8F9FC] text-[#0F172A] font-medium rounded-xl px-4 py-2.5 text-sm border border-[#E8ECF2] hover:border-[#D1D9E6] transition-all duration-150;
+  }
+
+  .btn-ghost {
+    @apply text-[#475569] hover:text-[#0F172A] hover:bg-[#F1F4F9] rounded-xl px-3 py-2 text-sm transition-all duration-150;
+  }
+
+  /* Badges */
+  .badge {
+    @apply inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-medium;
+  }
+
+  .badge-indigo {
+    @apply badge bg-[#EEF2FF] text-[#6366F1];
+  }
+
+  .badge-emerald {
+    @apply badge bg-[#ECFDF5] text-[#059669];
+  }
+
+  .badge-amber {
+    @apply badge bg-[#FFFBEB] text-[#D97706];
+  }
+
+  .badge-red {
+    @apply badge bg-[#FEF2F2] text-[#DC2626];
+  }
+
+  .badge-gray {
+    @apply badge bg-[#F1F4F9] text-[#475569];
+  }
+
+  /* Input */
+  .input {
+    @apply w-full bg-white border border-[#E8ECF2] focus:border-[#6366F1] focus:ring-2 focus:ring-[#EEF2FF] rounded-xl px-3.5 py-2.5 text-sm text-[#0F172A] placeholder-[#94A3B8] outline-none transition-all duration-150;
+  }
+
+  /* Stat card */
+  .stat-card {
+    @apply card p-5 flex flex-col gap-1;
+  }
+
+  /* Revenue pulse bar — the signature element */
+  .revenue-pulse {
+    @apply h-1 rounded-full bg-[#E8ECF2] overflow-hidden mt-3;
+  }
+
+  .revenue-pulse-fill {
+    @apply h-full rounded-full;
+    background: linear-gradient(90deg, #6366F1, #10B981);
+    transition: width 0.8s cubic-bezier(0.16, 1, 0.3, 1);
+  }
+}
+
+@layer utilities {
+  .gradient-brand {
+    background: linear-gradient(135deg, #6366F1 0%, #8B5CF6 100%);
+  }
+
+  .gradient-revenue {
+    background: linear-gradient(135deg, #10B981 0%, #6366F1 100%);
+  }
+
+  .text-gradient {
+    @apply bg-clip-text text-transparent;
+    background: linear-gradient(135deg, #6366F1, #8B5CF6);
+  }
+
+  .shadow-card {
+    box-shadow: 0 1px 3px rgba(15, 23, 42, 0.06), 0 1px 2px rgba(15, 23, 42, 0.04);
+  }
+
+  .shadow-card-hover {
+    box-shadow: 0 4px 12px rgba(15, 23, 42, 0.08), 0 2px 4px rgba(15, 23, 42, 0.04);
+  }
+}
