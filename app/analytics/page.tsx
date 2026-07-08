@@ -1,6 +1,6 @@
 // app/analytics/page.tsx
 import { AppShell } from '@/components/layout/AppShell'
-import { DUMMY_CHANNEL_STATS, DUMMY_POSTS, PLATFORM_META } from '@/lib/dummy-data'
+import { DUMMY_CHANNEL_STATS, DUMMY_POSTS, PLATFORM_META, SocialChannel } from '@/lib/dummy-data'
 import { formatMoneyFull, formatNumber, trendLabel } from '@/lib/utils'
 
 export default function AnalyticsPage() {
@@ -107,7 +107,7 @@ export default function AnalyticsPage() {
                   </td>
                   <td className="px-4 py-3.5">
                     <div className="flex gap-1">
-                      {post.channels.map(ch => {
+                      {post.channels.map((ch: SocialChannel) => {
                         const meta = PLATFORM_META[ch]
                         return (
                           <span key={ch} className="text-[10px] font-bold px-1.5 py-0.5 rounded"
