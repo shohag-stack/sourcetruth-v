@@ -6,6 +6,8 @@ import crypto from 'crypto'
 export async function POST(request: Request) {
 
   console.log('showing lemon squeezy order from webhook route', request)
+
+
   const rawBody = await request.text()
   const signature = request.headers.get('x-signature') ?? ''
   const digest = crypto.createHmac('sha256', process.env.LEMONSQUEEZY_WEBHOOK_SECRET!).update(rawBody).digest('hex')
@@ -23,19 +25,25 @@ export async function POST(request: Request) {
   const supabase = createServiceClient()
 
   // find the site via the store, or however you map LS store → your site — depends on payment_connections
-  const { data: conn } = await supabase
-    .from('payment_connections')
-    .select('user_id, site_id')
-    .eq('provider', 'lemon_squeezy')
-    .eq('account_email', attrs.store_email ?? '')
-    .single()
+// app/api/webhook/lemonsqueezy/route.ts — swap the lookup
+const { data: conn } = await supabase
+  .from('payment_connections')
+  .select('user_id, site_id')
+  .eq('provider', 'lemon_squeezy')
+  .eq('store_id', String(attrs.store_id))
+  .maybeSingle() // won't throw if no match — logs a clean null instead
+
+if (!conn) {
+  console.error('No payment_connections match for store_id:', attrs.store_id)
+  return NextResponse.json({ ok: true }) // acknowledge receipt so LS doesn't retry forever
+}
 
   // attribution lookup: match email to a visitor for first/last touch
   const { data: visitor } = await supabase
     .from('visitors')
     .select('first_source, first_post_id, last_source, last_post_id')
     .eq('email', email)
-    .single()
+    .maybeSingle()
 
   const postId = visitor?.last_post_id ?? null
 
