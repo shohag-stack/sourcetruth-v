@@ -106,7 +106,8 @@ export default function PostClient({ posts: initialPosts }: PostClientProps) {
         {/* Post list */}
         <div className="space-y-4">
           {filtered.map(post => {
-            const meta = PLATFORM_META[post.channel]
+            const primaryChannel = post.channels[0]
+            const meta = PLATFORM_META[primaryChannel]
             const revPct = maxRevenue > 0 ? Math.min((post.revenue_cents / maxRevenue) * 100, 100) : 0
             const isReady = post.status === 'ready'
             const conversionRate = post.total_clicks > 0

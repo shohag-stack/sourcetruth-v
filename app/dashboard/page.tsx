@@ -7,8 +7,8 @@ import Link from 'next/link'
 import { SocialChannel } from '@/types/posts'
 
 export default function DashboardPage() {
-  const publishedPosts = DUMMY_POSTS.filter(p => p.status === 'published')
-  const topPost = publishedPosts.sort((a, b) => b.revenue - a.revenue)[0]
+  const publishedPosts = DUMMY_POSTS.filter(p => p.status === 'posted')
+  const topPost = publishedPosts.sort((a, b) => b.revenue_cents - a.revenue_cents)[0]
 
   return (
     <AppShell>
@@ -50,11 +50,11 @@ export default function DashboardPage() {
                     <span key={ch} className="text-[11px] text-[#94A3B8]">{PLATFORM_META[ch].name}</span>
                   ))}
                   <span className="text-[#E8ECF2]">·</span>
-                  <span className="text-[11px] text-[#94A3B8]">{topPost.conversions} conversions</span>
+                  <span className="text-[11px] text-[#94A3B8]">{topPost.total_conversions} conversions</span>
                 </div>
               </div>
               <div className="flex-shrink-0 text-right">
-                <div className="text-2xl font-bold text-[#0F172A] tabular">{formatMoneyFull(topPost.revenue)}</div>
+                <div className="text-2xl font-bold text-[#0F172A] tabular">{formatMoneyFull(topPost.total_conversions)}</div>
                 <div className="text-[12px] text-[#94A3B8]">earned</div>
               </div>
             </div>

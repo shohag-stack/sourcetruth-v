@@ -100,7 +100,7 @@ export default function AnalyticsPage() {
               </tr>
             </thead>
             <tbody>
-              {DUMMY_POSTS.filter(p => p.status === 'published').sort((a, b) => b.revenue - a.revenue).map(post => (
+              {DUMMY_POSTS.filter(p => p.status === 'posted').sort((a, b) => b.revenue_cents - a.revenue_cents).map(post => (
                 <tr key={post.id} className="border-b border-[#F1F4F9] hover:bg-[#F8F9FC] transition-colors last:border-0">
                   <td className="px-5 py-3.5">
                     <p className="text-[13px] text-[#0F172A] line-clamp-1 max-w-xs">{post.content}</p>
@@ -118,10 +118,10 @@ export default function AnalyticsPage() {
                       })}
                     </div>
                   </td>
-                  <td className="px-4 py-3.5 text-right text-[13px] text-[#475569] tabular">{formatNumber(post.clicks)}</td>
-                  <td className="px-4 py-3.5 text-right text-[13px] text-[#475569] tabular">{post.conversions}</td>
+                  <td className="px-4 py-3.5 text-right text-[13px] text-[#475569] tabular">{formatNumber(post.total_clicks)}</td>
+                  <td className="px-4 py-3.5 text-right text-[13px] text-[#475569] tabular">{post.total_conversions}</td>
                   <td className="px-5 py-3.5 text-right text-[13px] font-bold text-[#10B981] tabular">
-                    {formatMoneyFull(post.revenue)}
+                    {formatMoneyFull(post.revenue_cents)}
                   </td>
                 </tr>
               ))}

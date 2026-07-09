@@ -1,3 +1,4 @@
+import { DbPost } from "@/types/posts"
 // lib/dummy-data.ts
 
 // types/post.ts
@@ -22,24 +23,6 @@ export interface ConnectedPayment {
   connected: boolean
   totalRevenue: number
   currency: string
-}
-
-// Mirrors public.posts exactly — snake_case, straight from Supabase
-export interface DbPost {
-  id: string
-  content: string
-  channel: SocialChannel
-  destination: string
-  campaign: string | null
-  slug: string
-  tracked_link: string
-  status: PostStatus
-  posted_at: string | null
-  created_at: string
-  total_clicks: number
-  unique_clicks: number
-  total_conversions: number
-  revenue_cents: number
 }
 
 export interface RevenueEvent {
@@ -96,81 +79,108 @@ export const DUMMY_PAYMENTS: ConnectedPayment[] = [
 ]
 
 // ─── Social Posts ─────────────────────────────────────────────────────────────
-export const DUMMY_POSTS: SocialPost[] = [
+export const DUMMY_POSTS: DbPost[] = [
   {
-    id: 'p1',
-    content: "After 3 years of freelancing, here's what I learned about pricing your design work:\n\n→ Charge for the outcome, not the hours\n→ Your rate should make you slightly uncomfortable\n→ Scope creep is a pricing problem, not a client problem\n→ Double your rate and see what happens\n\nThe day I raised my prices 3x was the day I started working with better clients.\n\nWhat's your biggest pricing lesson?",
-    channels: ['linkedin', 'twitter'],
-    status: 'ready',
-    publishedAt: '2024-06-24T09:00:00Z',
-    link: 'https://raysa.studio/design-pricing-guide',
-    utmCampaign: 'pricing-post-jun24',
-    likes: 847, comments: 142, shares: 203, clicks: 1840, impressions: 28400,
-    revenue: 3240, conversions: 41,
-    revenueByProvider: { lemon_squeezy: 2100, stripe: 890, gumroad: 250 },
-    revenueByChannel: { linkedin: 2680, twitter: 560 },
+    id: "p1",
+    content:
+      "After 3 years of freelancing, here's what I learned about pricing your design work...",
+    channels: ["linkedin", "twitter"],
+    destination: "Raysa Studio LinkedIn",
+    campaign: "pricing-post-jun24",
+    slug: "design-pricing-guide",
+    tracked_link: "https://raysa.studio/design-pricing-guide",
+    status: "posted",
+    posted_at: "2024-06-24T09:00:00Z",
+    created_at: "2024-06-24T08:30:00Z",
+    total_clicks: 1840,
+    unique_clicks: 1512,
+    total_conversions: 41,
+    revenue_cents: 324000,
   },
   {
-    id: 'p2',
-    content: "I just launched my Figma component library — 400+ components, dark + light mode, fully responsive.\n\nBuilt it over 6 months while working with clients. Now it saves me 10+ hours per project.\n\nGetting it for the price of a coffee ☕\n\nLink in bio 👇",
-    channels: ['instagram', 'threads'],
-    status: 'ready',
-    publishedAt: '2024-06-21T14:00:00Z',
-    link: 'https://raysa.studio/figma-library',
-    utmCampaign: 'figma-launch-jun21',
-    likes: 1204, comments: 89, shares: 312, clicks: 2240, impressions: 41200,
-    revenue: 2890, conversions: 36,
-    revenueByProvider: { lemon_squeezy: 1940, gumroad: 950 },
-    revenueByChannel: { instagram: 2200, threads: 690 },
+    id: "p2",
+    content:
+      "I just launched my Figma component library — 400+ components...",
+    channels: ["instagram", "threads"],
+    destination: "Instagram",
+    campaign: "figma-launch-jun21",
+    slug: "figma-library",
+    tracked_link: "https://raysa.studio/figma-library",
+    status: "posted",
+    posted_at: "2024-06-21T14:00:00Z",
+    created_at: "2024-06-21T13:40:00Z",
+    total_clicks: 2240,
+    unique_clicks: 1870,
+    total_conversions: 36,
+    revenue_cents: 289000,
   },
   {
-    id: 'p3',
-    content: "Hot take: Most SaaS landing pages fail because they explain features, not outcomes.\n\nYour customer doesn't want \"advanced analytics\" — they want to know which LinkedIn post made them money.\n\nRewrite your headline as a transformation:\nFrom: [current state] → To: [desired state]\n\nFull breakdown in my newsletter 👇",
-    channels: ['linkedin', 'twitter', 'facebook'],
-    status: 'posted',
-    publishedAt: '2024-06-18T10:30:00Z',
-    link: 'https://raysa.studio/newsletter',
-    utmCampaign: 'newsletter-jun18',
-    likes: 623, comments: 98, shares: 167, clicks: 980, impressions: 19800,
-    revenue: 1760, conversions: 22,
-    revenueByProvider: { lemon_squeezy: 1200, stripe: 560 },
-    revenueByChannel: { linkedin: 1340, twitter: 280, facebook: 140 },
+    id: "p3",
+    content:
+      "Hot take: Most SaaS landing pages fail because they explain features, not outcomes.",
+    channels: ["linkedin", "twitter", "facebook"],
+    destination: "Newsletter",
+    campaign: "newsletter-jun18",
+    slug: "newsletter-june",
+    tracked_link: "https://raysa.studio/newsletter",
+    status: "posted",
+    posted_at: "2024-06-18T10:30:00Z",
+    created_at: "2024-06-18T09:55:00Z",
+    total_clicks: 980,
+    unique_clicks: 811,
+    total_conversions: 22,
+    revenue_cents: 176000,
   },
   {
-    id: 'p4',
-    content: "5 Figma shortcuts I use 100x per day:\n\n1. Ctrl+R → Rename layers fast\n2. Ctrl+G → Group instantly  \n3. Alt+drag → Duplicate in place\n4. Ctrl+Shift+H → Hide/show UI\n5. Ctrl+/ → Quick actions\n\nSave this for later 🔖\n\nWhat's your most-used shortcut?",
-    channels: ['instagram', 'twitter', 'threads'],
-    status: 'posted',
-    publishedAt: '2024-06-15T08:00:00Z',
-    utmCampaign: 'figma-tips-jun15',
-    likes: 2140, comments: 341, shares: 892, clicks: 3240, impressions: 67800,
-    revenue: 940, conversions: 12,
-    revenueByProvider: { lemon_squeezy: 620, gumroad: 320 },
-    revenueByChannel: { instagram: 620, twitter: 240, threads: 80 },
+    id: "p4",
+    content:
+      "5 Figma shortcuts I use 100x per day...",
+    channels: ["instagram", "twitter", "threads"],
+    destination: "Instagram",
+    campaign: "figma-tips-jun15",
+    slug: "figma-shortcuts",
+    tracked_link: "",
+    status: "posted",
+    posted_at: "2024-06-15T08:00:00Z",
+    created_at: "2024-06-15T07:45:00Z",
+    total_clicks: 3240,
+    unique_clicks: 2820,
+    total_conversions: 12,
+    revenue_cents: 94000,
   },
   {
-    id: 'p5',
-    content: "The design system that took my freelance income from $3k to $12k/month:\n\nThread 🧵👇",
-    channels: ['twitter', 'linkedin'],
-    status: 'draft',
-    scheduledAt: '2024-07-02T09:00:00Z',
-    link: 'https://raysa.studio/design-system-course',
-    utmCampaign: 'design-system-jul02',
-    likes: 0, comments: 0, shares: 0, clicks: 0, impressions: 0,
-    revenue: 0, conversions: 0,
-    revenueByProvider: {},
-    revenueByChannel: {},
+    id: "p5",
+    content:
+      "The design system that took my freelance income from $3k to $12k/month.",
+    channels: ["twitter", "linkedin"],
+    destination: "Twitter",
+    campaign: "design-system-jul02",
+    slug: "design-system-course",
+    tracked_link: "https://raysa.studio/design-system-course",
+    status: "draft",
+    posted_at: null,
+    created_at: "2024-06-30T10:00:00Z",
+    total_clicks: 0,
+    unique_clicks: 0,
+    total_conversions: 0,
+    revenue_cents: 0,
   },
   {
-    id: 'p6',
-    content: "What nobody tells you about shipping your first digital product...",
-    channels: ['linkedin'],
-    status: 'draft',
-    utmCampaign: 'draft-product-launch',
-    likes: 0, comments: 0, shares: 0, clicks: 0, impressions: 0,
-    revenue: 0, conversions: 0,
-    revenueByProvider: {},
-    revenueByChannel: {},
+    id: "p6",
+    content:
+      "What nobody tells you about shipping your first digital product...",
+    channels: ["linkedin"],
+    destination: "LinkedIn",
+    campaign: null,
+    slug: "first-digital-product",
+    tracked_link: "",
+    status: "draft",
+    posted_at: null,
+    created_at: "2024-06-29T12:00:00Z",
+    total_clicks: 0,
+    unique_clicks: 0,
+    total_conversions: 0,
+    revenue_cents: 0,
   },
 ]
 
