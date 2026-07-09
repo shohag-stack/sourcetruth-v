@@ -107,7 +107,7 @@ export default function ConnectClient({ site, connections }: ConnectClientProps)
             const isLs = provider === 'lemon_squeezy'
 
             return (
-              <div key={provider} className="card shadow-card p-4">
+              <div key={provider} className={`card shadow-card p-4 ${conn?.connected? "bg-green-100" : "white" }`}>
                 <div className="flex items-center gap-4">
                   <div className="w-10 h-10 rounded-xl bg-[#F8F9FC] flex items-center justify-center text-xl flex-shrink-0">
                     {meta.icon}
@@ -124,7 +124,7 @@ export default function ConnectClient({ site, connections }: ConnectClientProps)
                   </div>
                   {conn?.connected ? (
                     <button onClick={() => disconnect(conn.id)}
-                      className="text-xs px-3 py-1.5 rounded-xl border border-[#E8ECF2] text-[#94A3B8] hover:text-[#EF4444] hover:border-[#FCA5A5] transition-colors">
+                      className={`text-xs px-3 py-1.5 rounded-xl border border-[#ff4f4f] text-[#ff1616] hover:text-[#EF4444] hover:border-[#FCA5A5] transition-colors`}>
                       Disconnect
                     </button>
                   ) : isLs ? (

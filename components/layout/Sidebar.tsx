@@ -2,6 +2,7 @@
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { cn } from '@/lib/utils'
+import Image from 'next/image'
 
 const NAV_MAIN = [
   { href: '/dashboard', label: 'Overview', icon: '◈' },
@@ -24,11 +25,13 @@ export function Sidebar() {
   return (
     <aside className="w-[220px] bg-white border-r border-[#E8ECF2] flex flex-col min-h-screen fixed top-0 left-0 z-40">
       <div className="px-5 pt-6 pb-4">
-        <div className="flex items-center gap-2.5">
-          <div className="w-8 h-8 rounded-xl gradient-brand flex items-center justify-center text-white font-bold text-sm flex-shrink-0">S</div>
+        <div className="flex w-full items-center justify-center gap-2.5">
           <div>
-            <div className="font-semibold text-[13px] text-[#0F172A] leading-none tracking-tight">SourceTruth</div>
-            <div className="text-[#94A3B8] text-[11px] mt-0.5">Revenue Attribution</div>
+            <Image src={'./logo-icon.svg'} alt='sourcetruth-logo' width={40} height={40} />
+          </div>
+          <div className=''>
+            <div className="font-bold text-[16px] text-[#0F172A] leading-none tracking-tight">SourceTruth</div>
+            <div className="text-[#94A3B8] text-[12px] mt-0.5">Revenue Attribution</div>
           </div>
         </div>
       </div>

@@ -10,7 +10,7 @@
   if (ref) {
     localStorage.setItem(STORAGE_KEY, JSON.stringify({ slug: ref, captured_at: Date.now() }));
 
-    fetch('https://sourcetruth.io/api/click', {
+    fetch(`${process.env.SITE_ORIGIN}/api/click`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ slug: ref, site_key: SITE_KEY, referrer: document.referrer }),
@@ -33,7 +33,7 @@
       const slug = getStoredSlug();
       if (!email) return;
       try {
-        await fetch('https://sourcetruth.io/api/identify', {
+        await fetch(`${process.env.SITE_ORIGIN}/api/identify`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ email, slug, site_key: SITE_KEY }),
