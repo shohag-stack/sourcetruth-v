@@ -106,8 +106,6 @@ export default function PostClient({ posts: initialPosts }: PostClientProps) {
         {/* Post list */}
         <div className="space-y-4">
           {filtered.map(post => {
-            const primaryChannel = post.channels[0]
-            const meta = PLATFORM_META[primaryChannel]
             const revPct = maxRevenue > 0 ? Math.min((post.revenue_cents / maxRevenue) * 100, 100) : 0
             const isReady = post.status === 'ready'
             const conversionRate = post.total_clicks > 0
@@ -120,10 +118,6 @@ export default function PostClient({ posts: initialPosts }: PostClientProps) {
 
                 <div className={`px-5 py-3 flex items-center justify-between border-b border-[#F1F4F9] ${isReady ? 'bg-[#EEF2FF]/40' : 'bg-[#F8F9FC]'}`}>
                   <div className="flex items-center gap-2">
-                    <span className="text-[11px] font-semibold px-2 py-1 rounded-lg"
-                      style={{ backgroundColor: meta.bgColor, color: meta.color }}>
-                      {meta.icon} {meta.name}
-                    </span>
                     <span className={`text-[11px] font-medium px-2 py-1 rounded-lg ${STATUS_STYLES[post.status]}`}>
                       {STATUS_LABELS[post.status]}
                     </span>
