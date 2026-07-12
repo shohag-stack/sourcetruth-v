@@ -45,7 +45,8 @@ export default function PostClient({ posts: initialPosts }: PostClientProps) {
     });
 
   function copyContent(post: DbPost) {
-    navigator.clipboard.writeText(post.content);
+    const full_tracked_copy = `${post.content} ${post.tracked_link}`;
+    navigator.clipboard.writeText(full_tracked_copy);
     setCopiedId(post.id);
     setTimeout(() => setCopiedId(null), 2000);
   }
@@ -64,8 +65,6 @@ export default function PostClient({ posts: initialPosts }: PostClientProps) {
         post.id === id ? { ...post, status: "posted" as const } : post,
       ),
     );
-
-    console.log("showing posts from markPosted funciton", posts);
 
     const res = await fetch(`/api/posts/${id}`, {
       method: "PATCH",
