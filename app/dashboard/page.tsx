@@ -85,14 +85,13 @@ export default function DashboardPage() {
               const conversionRate = post.total_clicks > 0
                 ? (post.total_conversions / post.total_clicks) * 100
                 : 0
-
+              const meta = PLATFORM_META[post.channel]
               return (
                 <div key={post.id} className="card p-4">
                   <div className="flex items-center justify-between gap-2 mb-3 flex-wrap">
                     <div className="flex items-center gap-2">
-                      {post.channels.map((ch: SocialChannel) => (
-                        <span key={ch} className="badge-gray">{PLATFORM_META[ch].name}</span>
-                      ))}
+                      
+                        <span className="badge-gray">{meta.name}</span>
                     </div>
                     {countries.length > 0 && (
                       <div className="flex items-center gap-1.5">

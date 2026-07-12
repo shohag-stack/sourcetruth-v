@@ -84,7 +84,7 @@ export const DUMMY_POSTS: DbPost[] = [
     id: "p1",
     content:
       "After 3 years of freelancing, here's what I learned about pricing your design work...",
-    channels: ["linkedin", "twitter"],
+    channel: "linkedin",
     destination: "Raysa Studio LinkedIn",
     campaign: "pricing-post-jun24",
     slug: "design-pricing-guide",
@@ -101,7 +101,7 @@ export const DUMMY_POSTS: DbPost[] = [
     id: "p2",
     content:
       "I just launched my Figma component library — 400+ components...",
-    channels: ["instagram", "threads"],
+    channel: "instagram",
     destination: "Instagram",
     campaign: "figma-launch-jun21",
     slug: "figma-library",
@@ -118,7 +118,7 @@ export const DUMMY_POSTS: DbPost[] = [
     id: "p3",
     content:
       "Hot take: Most SaaS landing pages fail because they explain features, not outcomes.",
-    channels: ["linkedin", "twitter", "facebook"],
+    channel: "linkedin",
     destination: "Newsletter",
     campaign: "newsletter-jun18",
     slug: "newsletter-june",
@@ -135,7 +135,7 @@ export const DUMMY_POSTS: DbPost[] = [
     id: "p4",
     content:
       "5 Figma shortcuts I use 100x per day...",
-    channels: ["instagram", "twitter", "threads"],
+    channel: "instagram",
     destination: "Instagram",
     campaign: "figma-tips-jun15",
     slug: "figma-shortcuts",
@@ -152,7 +152,7 @@ export const DUMMY_POSTS: DbPost[] = [
     id: "p5",
     content:
       "The design system that took my freelance income from $3k to $12k/month.",
-    channels: ["twitter", "linkedin"],
+    channel: "twitter",
     destination: "Twitter",
     campaign: "design-system-jul02",
     slug: "design-system-course",
@@ -169,7 +169,7 @@ export const DUMMY_POSTS: DbPost[] = [
     id: "p6",
     content:
       "What nobody tells you about shipping your first digital product...",
-    channels: ["linkedin"],
+    channel: "linkedin",
     destination: "LinkedIn",
     campaign: null,
     slug: "first-digital-product",

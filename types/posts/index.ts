@@ -8,7 +8,7 @@ export type PaymentProvider = 'lemon_squeezy' | 'stripe' | 'paddle' | 'gumroad' 
 export interface DbPost {
   id: string
   content: string
-  channels: SocialChannel[]
+  channel: SocialChannel
   destination: string
   campaign: string | null
   slug: string

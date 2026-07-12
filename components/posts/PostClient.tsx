@@ -82,6 +82,8 @@ export default function PostClient({ posts: initialPosts }: PostClientProps) {
     router.refresh(); // re-syncs with server state (e.g. posted_at)
   }
 
+  console.log("showing post from postClient page", posts);
+
   return (
     <AppShell>
       <div className="p-8">
@@ -133,16 +135,17 @@ export default function PostClient({ posts: initialPosts }: PostClientProps) {
                 ? (post.total_conversions / post.total_clicks) * 100
                 : 0;
 
+            const meta = PLATFORM_META[post.channel];
+
             return (
               <div key={post.id} className="card p-4 flex flex-col">
                 {/* Top row — channel pill + status + timestamp */}
                 <div className="flex items-center justify-between gap-2 mb-3 flex-wrap">
                   <div className="flex items-center gap-2">
-                    {/* {post.channels.map((ch: SocialChannel) => (
-                      <span key={ch} className="badge-gray">
-                        {PLATFORM_META[ch].name}
-                      </span>
-                    ))} */}
+                    <span className="badge-gray">
+                      {meta?.icon} {meta?.name ?? post.channel}
+                    </span>
+
                     <span className={STATUS_STYLES[post.status]}>
                       {STATUS_LABELS[post.status]}
                     </span>

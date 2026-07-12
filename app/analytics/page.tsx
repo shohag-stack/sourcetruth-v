@@ -107,15 +107,10 @@ export default function AnalyticsPage() {
                   </td>
                   <td className="px-4 py-3.5">
                     <div className="flex gap-1">
-                      {post.channels.map((ch: SocialChannel) => {
-                        const meta = PLATFORM_META[ch]
-                        return (
-                          <span key={ch} className="text-[10px] font-bold px-1.5 py-0.5 rounded"
-                            style={{ backgroundColor: meta.bgColor, color: meta.color }}>
-                            {meta.icon}
-                          </span>
-                        )
-                      })}
+                  
+                          <span className="text-[10px] font-bold px-1.5 py-0.5 rounded">{PLATFORM_META[post.channel].name}</span>
+                        
+                      
                     </div>
                   </td>
                   <td className="px-4 py-3.5 text-right text-[13px] text-[#475569] tabular">{formatNumber(post.total_clicks)}</td>
