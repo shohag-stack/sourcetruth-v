@@ -237,7 +237,7 @@ export const DUMMY_OVERVIEW = {
 
 // ─── Social platform meta ─────────────────────────────────────────────────────
 export const PLATFORM_META: Record<SocialChannel, { name: string; color: string; bgColor: string; icon: string }> = {
-  linkedin: { name: 'LinkedIn', color: '#0077B5', bgColor: '#EFF7FF', icon: 'in' },
+  linkedin: { name: 'LinkedIn', color: '#0077B5', bgColor: '#EFF7FF', icon: '' },
   twitter: { name: 'Twitter / X', color: '#000000', bgColor: '#F7F7F7', icon: '𝕏' },
   facebook: { name: 'Facebook', color: '#1877F2', bgColor: '#EEF4FF', icon: 'f' },
   instagram: { name: 'Instagram', color: '#E1306C', bgColor: '#FFF0F5', icon: '◎' },
@@ -251,4 +251,39 @@ export const PAYMENT_META: Record<PaymentProvider, { name: string; color: string
   paddle: { name: 'Paddle', color: '#0EA5E9', icon: '◉' },
   gumroad: { name: 'Gumroad', color: '#FF90E8', icon: '◆' },
   woocommerce: { name: 'WooCommerce', color: '#7F54B3', icon: '◇' },
+}
+
+/**
+ * ── PATCH NOTES (design-only additions) ──────────────────────────────
+ * The new dashboard mockup surfaces a few fields that didn't exist in
+ * the original DUMMY_OVERVIEW / DUMMY_POSTS: visitors, bounceRate,
+ * onlineNow, and per-post topCountries flags. These are placeholder
+ * dummy values only, added so the redesigned layout has something to
+ * render - they are NOT wired to real tracking/analytics logic.
+ * When you connect the dashboard to Supabase, these are the fields
+ * you'll need real queries for.
+ *
+ * Apply this by adding the fields below to your existing DUMMY_OVERVIEW
+ * object, and adding `topCountries` to each DUMMY_POSTS entry.
+ * ───────────────────────────────────────────────────────────────────
+ */
+
+// Add these three fields into your existing DUMMY_OVERVIEW object:
+export const DUMMY_OVERVIEW_PATCH = {
+  totalVisitors: 8271,
+  visitorsGrowth: 23.4,
+  bounceRate: 8.40,
+  bounceRateGrowth: 23.4,
+  onlineNow: 6,
+}
+
+// Add a `topCountries` field (flag emojis, most-clicked first) to each
+// post in DUMMY_POSTS - e.g.:
+export const DUMMY_TOP_COUNTRIES: Record<string, string[]> = {
+  p1: ['🇺🇸', '🇬🇧', '🇮🇳', '🇩🇪'],
+  p2: ['🇺🇸', '🇨🇦', '🇩🇪', '🇦🇺'],
+  p3: ['🇺🇸', '🇬🇧', '🇳🇱'],
+  p4: ['🇺🇸', '🇮🇳'],
+  p5: [],
+  p6: [],
 }

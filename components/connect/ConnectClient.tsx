@@ -85,75 +85,71 @@ export default function ConnectClient({ site, connections }: ConnectClientProps)
   }
 
   return (
-    <div className="p-8 max-w-3xl mx-auto">
-      <div className="mb-8">
-        <h1 className="text-[22px] font-bold text-[#0F172A] mb-0.5">Connections</h1>
-        <p className="text-[#94A3B8] text-sm">Connect your payment providers to start tracking revenue.</p>
+    <div className="p-8">
+      <div className="mb-6">
+        <h1 className="text-heading-lg text-ink mb-0.5">Connections</h1>
+        <p className="text-body-sm text-muted">Connect your payment providers to start tracking revenue.</p>
       </div>
 
       {error && (
-        <div className="card shadow-card p-4 mb-6 border-[#FCA5A5] bg-[#FEF2F2]">
-          <p className="text-[13px] text-[#B91C1C]">{error}</p>
+        <div className="card p-4 mb-6 border-primary/30 bg-primary-tint">
+          <p className="text-body-sm text-primary">{error}</p>
         </div>
       )}
 
       {/* Payment providers */}
       <section className="mb-8">
-        <h2 className="text-[11px] font-bold text-[#94A3B8] uppercase tracking-widest mb-4">Payment Providers</h2>
-        <div className="space-y-3">
+        <h2 className="text-caption text-muted uppercase tracking-widest mb-4">Payment Providers</h2>
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
           {PROVIDERS.map(provider => {
             const meta = PAYMENT_META[provider]
             const conn = connections.find(c => c.provider === provider)
             const isLs = provider === 'lemon_squeezy'
 
             return (
-              <div key={provider} className={`card shadow-card p-4 ${conn?.connected? "bg-green-100" : "white" }`}>
-                <div className="flex items-center gap-4">
-                  <div className="w-10 h-10 rounded-xl bg-[#F8F9FC] flex items-center justify-center text-xl flex-shrink-0">
-                    {meta.icon}
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <div className="font-medium text-[#0F172A]">{meta.name}</div>
-                    {conn?.connected ? (
-                      <div className="text-[12px] text-[#94A3B8]">{conn.account_name}</div>
-                    ) : (
-                      <div className="text-[12px] text-[#94A3B8]">
-                        {isLs ? 'Paste your Store ID and API key to connect' : 'Coming soon'}
-                      </div>
-                    )}
-                  </div>
-                  {conn?.connected ? (
-                    <button onClick={() => disconnect(conn.id)}
-                      className={`text-xs px-3 py-1.5 rounded-xl border border-[#ff4f4f] text-[#ff1616] hover:text-[#EF4444] hover:border-[#FCA5A5] transition-colors`}>
-                      Disconnect
-                    </button>
-                  ) : isLs ? (
-                    <button onClick={() => setShowLsForm(v => !v)} className="btn-primary text-xs py-1.5 px-3">
-                      Connect →
-                    </button>
-                  ) : (
-                    <button disabled className="text-xs py-1.5 px-3 rounded-xl bg-[#F8F9FC] text-[#CBD5E1] cursor-not-allowed">
-                      Soon
-                    </button>
-                  )}
+              <div key={provider} className="card p-5 flex flex-col items-center text-center">
+                <div className="w-12 h-12 rounded-xl bg-surface-muted flex items-center justify-center text-2xl mb-3">
+                  {meta.icon}
                 </div>
+                <div className="font-medium text-ink mb-1">{meta.name}</div>
+                {conn?.connected ? (
+                  <div className="text-caption text-muted normal-case font-normal mb-3 truncate w-full">{conn.account_name}</div>
+                ) : (
+                  <div className="text-caption text-muted normal-case font-normal mb-3">
+                    {isLs ? 'Store ID + API key required' : 'Coming soon'}
+                  </div>
+                )}
+
+                {conn?.connected ? (
+                  <button onClick={() => disconnect(conn.id)} className="btn-outline-primary text-xs !py-1.5 !px-3">
+                    Disconnect
+                  </button>
+                ) : isLs ? (
+                  <button onClick={() => setShowLsForm(v => !v)} className="btn-outline-success text-xs !py-1.5 !px-3">
+                    Connect
+                  </button>
+                ) : (
+                  <button disabled className="text-xs py-1.5 px-3 rounded-xl bg-surface-muted text-muted cursor-not-allowed">
+                    Soon
+                  </button>
+                )}
 
                 {isLs && showLsForm && !conn?.connected && (
-                  <div className="mt-4 pt-4 border-t border-[#E8ECF2] space-y-3">
+                  <div className="mt-4 pt-4 border-t border-line space-y-3 w-full text-left">
                     <div>
-                      <label className="block text-[12px] font-medium text-[#475569] mb-1.5">Store ID</label>
+                      <label className="block text-body-sm font-medium text-body mb-1.5">Store ID</label>
                       <input value={storeId} onChange={e => setStoreId(e.target.value)}
                         placeholder="e.g. 12345" className="input" />
-                      <p className="text-[11px] text-[#94A3B8] mt-1">Found in LS Dashboard → Settings → Stores</p>
+                      <p className="text-caption text-muted normal-case font-normal mt-1">Found in LS Dashboard → Settings → Stores</p>
                     </div>
                     <div>
-                      <label className="block text-[12px] font-medium text-[#475569] mb-1.5">API Key</label>
+                      <label className="block text-body-sm font-medium text-body mb-1.5">API Key</label>
                       <input type="password" value={apiKey} onChange={e => setApiKey(e.target.value)}
                         placeholder="Paste your API key" className="input" />
-                      <p className="text-[11px] text-[#94A3B8] mt-1">Found in LS Dashboard → Settings → API</p>
+                      <p className="text-caption text-muted normal-case font-normal mt-1">Found in LS Dashboard → Settings → API</p>
                     </div>
                     <button onClick={connectLemonSqueezy} disabled={saving}
-                      className="btn-primary text-sm py-2 px-4 disabled:opacity-50">
+                      className="btn-primary text-sm py-2 px-4 w-full disabled:opacity-50">
                       {saving ? 'Verifying...' : 'Verify & Connect'}
                     </button>
                   </div>
@@ -164,25 +160,25 @@ export default function ConnectClient({ site, connections }: ConnectClientProps)
         </div>
       </section>
 
-      {/* Tracking script — now using the real site_key */}
+      {/* Tracking script */}
       <section>
-        <h2 className="text-[11px] font-bold text-[#94A3B8] uppercase tracking-widest mb-4">Tracking Script</h2>
-        <div className="card shadow-card p-5">
+        <h2 className="text-caption text-muted uppercase tracking-widest mb-4">Tracking Script</h2>
+        <div className="card p-5">
           <div className="flex items-center justify-between mb-2">
-            <div className="font-medium text-[#0F172A]">Add to your site</div>
-            <span className="badge-emerald">Required</span>
+            <div className="font-medium text-ink">Add to your site</div>
+            <span className="badge-success">Required</span>
           </div>
           {!site ? (
-            <p className="text-[13px] text-[#94A3B8]">Add a site in Settings first to get your tracking snippet.</p>
+            <p className="text-body-sm text-muted">Add a site in Settings first to get your tracking snippet.</p>
           ) : (
             <>
-              <p className="text-[13px] text-[#94A3B8] mb-4 leading-relaxed">
-                Paste this snippet before <code className="bg-[#F1F4F9] text-[#6366F1] px-1 rounded text-xs">&lt;/head&gt;</code> on every page of your website.
+              <p className="text-body-sm text-muted mb-4 leading-relaxed">
+                Paste this snippet before <code className="bg-surface-muted text-primary px-1 rounded text-xs">&lt;/head&gt;</code> on every page of your website.
               </p>
-              <div className="bg-[#F8F9FC] rounded-xl p-4 font-mono text-[11px] text-[#475569] leading-relaxed relative overflow-x-auto">
+              <div className="bg-surface-muted rounded-xl p-4 font-mono text-[11px] text-body leading-relaxed relative overflow-x-auto">
                 <pre>{`<script src="https://sourcetruth.io/track.js" data-site="${site.site_key}"></script>`}</pre>
                 <button onClick={copySnippet}
-                  className="absolute top-3 right-3 bg-white border border-[#E8ECF2] text-[#475569] hover:text-[#0F172A] text-[11px] px-3 py-1.5 rounded-lg transition-colors shadow-card">
+                  className="absolute top-3 right-3 bg-surface border border-line text-body hover:text-ink text-[11px] px-3 py-1.5 rounded-lg transition-colors shadow-card">
                   {copied ? '✓ Copied' : 'Copy'}
                 </button>
               </div>

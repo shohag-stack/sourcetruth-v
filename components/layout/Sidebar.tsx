@@ -9,6 +9,7 @@ const NAV_MAIN = [
   { href: '/links', label: 'New Post', icon: '+', highlight: true },
   { href: '/posts', label: 'My Posts', icon: '◧' },
   { href: '/analytics', label: 'Analytics', icon: '◉' },
+  { href: '/visitors', label: 'Visitors', icon: '◉' },
   { href: '/revenue', label: 'Revenue', icon: '$' },
 ]
 

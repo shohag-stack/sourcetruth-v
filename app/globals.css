@@ -2,64 +2,93 @@
 @tailwind components;
 @tailwind utilities;
 
+/* ─────────────────────────────────────────────────────────────
+   DESIGN TOKENS — this is the only place colors should be defined.
+   Every component below (and every .tsx file in the app) should
+   reference these variables via the Tailwind classes in
+   tailwind.config.ts (bg-primary, text-ink, border-line, etc.)
+   rather than hardcoding hex values. Change a value here and it
+   updates everywhere.
+   ───────────────────────────────────────────────────────────── */
 @layer base {
   :root {
-    --white: #ffffff;
-    --surface: #F8F9FC;
-    --surface-2: #F1F4F9;
-    --border: #E8ECF2;
-    --border-strong: #D1D9E6;
-    --text-primary: #0F172A;
-    --text-secondary: #475569;
-    --text-muted: #94A3B8;
-    --indigo: #6366F1;
-    --indigo-light: #EEF2FF;
-    --indigo-mid: #C7D2FE;
-    --emerald: #10B981;
-    --emerald-light: #ECFDF5;
-    --amber: #F59E0B;
-    --amber-light: #FFFBEB;
-    --red: #EF4444;
-    --red-light: #FEF2F2;
+    /* Base surfaces */
+    --bg: #FBFAF9;              /* page background */
+    --surface: #FFFFFF;         /* cards, inputs */
+    --surface-muted: #F7F6F4;   /* subtle fills inside cards */
+    --border: #EEEEEE;          /* default hairline border */
+    --border-strong: #9E9E9E;   /* emphasized border / dividers */
+
+    /* Text */
+    --ink: #1A1A1A;             /* headings, primary text */
+    --body: #5B5B5B;            /* body / secondary text */
+    --muted: #9E9E9E;           /* placeholders, captions, disabled */
+
+    /* Brand — primary CTA, links, active nav state.
+       Stored as RGB channels (not hex) so Tailwind opacity modifiers
+       like border-primary/30 or bg-primary/10 work. Use --primary-hex
+       when you need a plain hex value in raw CSS (gradients etc). */
+    --primary: 237 63 1;
+    --primary-hex: #ED3F01;
+    --primary-hover: #D63A00;
+    --primary-tint: #FFF3EF;
+
+    /* Success — save actions, positive revenue, confirmations */
+    --success: 26 167 26;
+    --success-hex: #1AA71A;
+    --success-hover: #158A15;
+    --success-tint: #F1FFF1;
+
+    /* Neutral scale reused for badges/backgrounds */
+    --gray-dark: #5B5B5B;
+    --gray-mid: #9E9E9E;
+    --gray-light: #EEEEEE;
   }
 
-  * { @apply border-[#E8ECF2]; }
+  * { border-color: var(--border); }
 
   body {
-    color: var(--text-primary);
-    background: var(--white);
+    color: var(--ink);
+    background: var(--bg);
     font-feature-settings: 'cv11', 'ss01';
   }
 
-  /* Tabular numbers for data */
   .tabular { font-variant-numeric: tabular-nums; }
 
   ::-webkit-scrollbar { width: 4px; height: 4px; }
   ::-webkit-scrollbar-track { background: transparent; }
-  ::-webkit-scrollbar-thumb { background: #D1D9E6; border-radius: 99px; }
+  ::-webkit-scrollbar-thumb { background: var(--border-strong); border-radius: 99px; }
 }
 
 @layer components {
   /* Cards */
   .card {
-    @apply bg-white border border-[#E8ECF2] rounded-2xl;
+    @apply bg-surface border border-line rounded-2xl;
   }
 
   .card-surface {
-    @apply bg-[#F8F9FC] border border-[#E8ECF2] rounded-2xl;
+    @apply bg-surface-muted border border-line rounded-2xl;
   }
 
   /* Buttons */
   .btn-primary {
-    @apply bg-[#6366F1] hover:bg-[#4F46E5] text-white font-medium rounded-xl px-4 py-2.5 text-sm transition-all duration-150 shadow-sm hover:shadow-md;
+    @apply bg-primary hover:bg-primary-hover text-white font-medium rounded-xl px-4 py-2.5 text-sm transition-all duration-150 shadow-sm hover:shadow-md;
+  }
+
+  .btn-success {
+    @apply bg-success hover:bg-success-hover text-white font-medium rounded-xl px-4 py-2.5 text-sm transition-all duration-150 shadow-sm hover:shadow-md;
   }
 
   .btn-secondary {
-    @apply bg-white hover:bg-[#F8F9FC] text-[#0F172A] font-medium rounded-xl px-4 py-2.5 text-sm border border-[#E8ECF2] hover:border-[#D1D9E6] transition-all duration-150;
+    @apply bg-surface hover:bg-surface-muted text-ink font-medium rounded-xl px-4 py-2.5 text-sm border border-line hover:border-strong transition-all duration-150;
+  }
+
+  .btn-outline-primary {
+    @apply bg-surface hover:bg-primary-tint text-primary font-medium rounded-xl px-4 py-2.5 text-sm border border-primary/30 hover:border-primary transition-all duration-150;
   }
 
   .btn-ghost {
-    @apply text-[#475569] hover:text-[#0F172A] hover:bg-[#F1F4F9] rounded-xl px-3 py-2 text-sm transition-all duration-150;
+    @apply text-body hover:text-ink hover:bg-surface-muted rounded-xl px-3 py-2 text-sm transition-all duration-150;
   }
 
   /* Badges */
@@ -67,29 +96,14 @@
     @apply inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-medium;
   }
 
-  .badge-indigo {
-    @apply badge bg-[#EEF2FF] text-[#6366F1];
-  }
-
-  .badge-emerald {
-    @apply badge bg-[#ECFDF5] text-[#059669];
-  }
-
-  .badge-amber {
-    @apply badge bg-[#FFFBEB] text-[#D97706];
-  }
-
-  .badge-red {
-    @apply badge bg-[#FEF2F2] text-[#DC2626];
-  }
-
-  .badge-gray {
-    @apply badge bg-[#F1F4F9] text-[#475569];
-  }
+  .badge-primary { @apply badge bg-primary text-white; }
+  .badge-primary-tint { @apply badge bg-primary-tint text-primary; }
+  .badge-success { @apply badge bg-success-tint text-success; }
+  .badge-gray { @apply badge bg-surface-muted text-body; }
 
   /* Input */
   .input {
-    @apply w-full bg-white border border-[#E8ECF2] focus:border-[#6366F1] focus:ring-2 focus:ring-[#EEF2FF] rounded-xl px-3.5 py-2.5 text-sm text-[#0F172A] placeholder-[#94A3B8] outline-none transition-all duration-150;
+    @apply w-full bg-surface border border-line focus:border-primary focus:ring-2 focus:ring-primary-tint rounded-xl px-3.5 py-2.5 text-sm text-ink placeholder-muted outline-none transition-all duration-150;
   }
 
   /* Stat card */
@@ -99,35 +113,35 @@
 
   /* Revenue pulse bar — the signature element */
   .revenue-pulse {
-    @apply h-1 rounded-full bg-[#E8ECF2] overflow-hidden mt-3;
+    @apply h-1 rounded-full bg-line overflow-hidden mt-3;
   }
 
   .revenue-pulse-fill {
     @apply h-full rounded-full;
-    background: linear-gradient(90deg, #6366F1, #10B981);
+    background: linear-gradient(90deg, var(--primary-hex), var(--success-hex));
     transition: width 0.8s cubic-bezier(0.16, 1, 0.3, 1);
   }
 }
 
 @layer utilities {
   .gradient-brand {
-    background: linear-gradient(135deg, #6366F1 0%, #8B5CF6 100%);
+    background: linear-gradient(135deg, var(--primary-hex) 0%, #FF6B35 100%);
   }
 
   .gradient-revenue {
-    background: linear-gradient(135deg, #10B981 0%, #6366F1 100%);
+    background: linear-gradient(135deg, var(--success-hex) 0%, var(--primary-hex) 100%);
   }
 
   .text-gradient {
     @apply bg-clip-text text-transparent;
-    background: linear-gradient(135deg, #6366F1, #8B5CF6);
+    background: linear-gradient(135deg, var(--primary-hex), #FF6B35);
   }
 
   .shadow-card {
-    box-shadow: 0 1px 3px rgba(15, 23, 42, 0.06), 0 1px 2px rgba(15, 23, 42, 0.04);
+    box-shadow: 0 1px 3px rgba(26, 26, 26, 0.06), 0 1px 2px rgba(26, 26, 26, 0.04);
   }
 
   .shadow-card-hover {
-    box-shadow: 0 4px 12px rgba(15, 23, 42, 0.08), 0 2px 4px rgba(15, 23, 42, 0.04);
+    box-shadow: 0 4px 12px rgba(26, 26, 26, 0.08), 0 2px 4px rgba(26, 26, 26, 0.04);
   }
 }
