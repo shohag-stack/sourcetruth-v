@@ -10,23 +10,39 @@ export async function POST(request: Request) {
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
-  const { name, domain } = await request.json()
-  if (!name || !domain) {
-    return NextResponse.json({ error: 'name and domain required' }, { status: 400 })
+  const { name, domain, site_key } = await request.json()
+  if (!name || !domain || !site_key) {
+    return NextResponse.json({ error: 'name, domain and site_key required' }, { status: 400 })
   }
 
-  // domain stored without protocol per your schema's check constraint
-  const cleanDomain = domain.replace(/^https?:\/\//, '').replace(/\/$/, '')
-  const site_key = `st_${nanoid()}`
+  // Check plan limit
+  const { data: profile } = await supabase
+    .from('users')
+    .select('plan, sites_limit')
+    .eq('id', user.id)
+    .single()
+
+  const { count } = await supabase
+    .from('sites')
+    .select('id', { count: 'exact', head: true })
+    .eq('user_id', user.id)
+
+  const limit = profile?.sites_limit ?? 1
+  if (limit !== -1 && (count ?? 0) >= limit) {
+    return NextResponse.json(
+      { error: `Site limit reached. Upgrade your plan to add more sites.` },
+      { status: 403 }
+    )
+  }
 
   const { data, error } = await supabase
     .from('sites')
-    .insert({ user_id: user.id, name, domain: cleanDomain, site_key })
+    .insert({ user_id: user.id, name, domain, site_key })
     .select()
     .single()
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
-  return NextResponse.json(data)
+  return NextResponse.json(data, { status: 201 })
 }
 
 export async function PATCH(request: Request) {
@@ -49,4 +65,23 @@ export async function PATCH(request: Request) {
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
   return NextResponse.json(data)
+}
+
+export async function DELETE(
+  _request: Request,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  const { id } = await params
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+
+  const { error } = await supabase
+    .from('sites')
+    .delete()
+    .eq('id', id)
+    .eq('user_id', user.id) // RLS double-check — user can only delete own sites
+
+  if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+  return NextResponse.json({ ok: true })
 }
