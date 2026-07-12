@@ -6,7 +6,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { PLATFORM_META } from "@/lib/dummy-data";
-import { DbPost } from "@/types/posts";
+import { DbPost, SocialChannel } from "@/types/posts";
 import { formatMoneyFull, formatNumber, timeAgo } from "@/lib/utils";
 
 const STATUS_STYLES: Record<string, string> = {
@@ -132,16 +132,17 @@ export default function PostClient({ posts: initialPosts }: PostClientProps) {
               post.total_clicks > 0
                 ? (post.total_conversions / post.total_clicks) * 100
                 : 0;
-            const meta = PLATFORM_META[post.channel];
 
             return (
               <div key={post.id} className="card p-4 flex flex-col">
                 {/* Top row — channel pill + status + timestamp */}
                 <div className="flex items-center justify-between gap-2 mb-3 flex-wrap">
                   <div className="flex items-center gap-2">
-                    <span className="badge-gray">
-                      {meta?.icon} {meta?.name ?? post.channel}
-                    </span>
+                    {/* {post.channels.map((ch: SocialChannel) => (
+                      <span key={ch} className="badge-gray">
+                        {PLATFORM_META[ch].name}
+                      </span>
+                    ))} */}
                     <span className={STATUS_STYLES[post.status]}>
                       {STATUS_LABELS[post.status]}
                     </span>
