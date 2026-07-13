@@ -17,12 +17,34 @@
   const params = new URLSearchParams(window.location.search)
   const ref = params.get('st')
 
+  // Real ground-truth source, parsed from the referring page's hostname
+  // at the exact moment they land via the tracked link. This is captured
+  // NOW because by the time they reach checkout, document.referrer will
+  // just be whatever page on your own site they were last on — not the
+  // social platform they actually came from.
+  function parseReferrerSource(referrer) {
+    if (!referrer) return 'direct' // also hit by in-app browsers that strip referrer entirely
+    try {
+      const host = new URL(referrer).hostname.replace(/^www\./, '')
+      if (/linkedin\.com|lnkd\.in/.test(host)) return 'linkedin'
+      if (/twitter\.com|t\.co|x\.com/.test(host)) return 'twitter'
+      if (/facebook\.com|fb\.me|fb\.watch/.test(host)) return 'facebook'
+      if (/instagram\.com/.test(host)) return 'instagram'
+      if (/threads\.net/.test(host)) return 'threads'
+      if (/bsky\.app/.test(host)) return 'bluesky'
+      return host
+    } catch (e) {
+      return 'direct'
+    }
+  }
+
   if (ref) {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify({ slug: ref, captured_at: Date.now() }))
+    const source = parseReferrerSource(document.referrer)
+    localStorage.setItem(STORAGE_KEY, JSON.stringify({ slug: ref, source: source, captured_at: Date.now() }))
     fetch(`${ORIGIN}/api/click`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ slug: ref, site_key: SITE_KEY, referrer: document.referrer }),
+      body: JSON.stringify({ slug: ref, site_key: SITE_KEY, referrer: document.referrer, source: source }),
     }).catch(() => {})
   }
 
@@ -70,6 +92,14 @@
     return data.slug
   }
 
+  function getStoredSource() {
+    const raw = localStorage.getItem(STORAGE_KEY)
+    if (!raw) return null
+    const data = JSON.parse(raw)
+    if (Date.now() - data.captured_at > THIRTY_DAYS) return null
+    return data.source ?? null
+  }
+
   window.SourceTruth = {
     identify: async function(email) {
       const slug = getStoredSlug()
@@ -99,7 +129,6 @@
   // and passes any checkout[custom][...] query params straight through
   // to `meta.custom_data` in the webhook payload. So we just need to make
   // sure the slug is sitting in the href before the click happens.
-  
   const LS_LINK_PATTERN = /lemonsqueezy\.com\/(checkout|buy)/i
 
   function isLemonSqueezyLink(href) {
@@ -109,6 +138,7 @@
   function attachRefToCheckoutLinks() {
     const slug = getStoredSlug()
     if (!slug) return
+    const source = getStoredSource()
 
     document.querySelectorAll('a[href]').forEach(function(a) {
       const href = a.getAttribute('href')
@@ -120,6 +150,10 @@
         const url = new URL(href, window.location.href)
         url.searchParams.set('checkout[custom][st_ref]', slug)
         if (SITE_KEY) url.searchParams.set('checkout[custom][st_site]', SITE_KEY)
+        // real ground-truth source (from referrer at click time), NOT
+        // the post's configured channel — this is the actual fix for
+        // "source shows LinkedIn even though the sale came from Twitter"
+        if (source) url.searchParams.set('checkout[custom][st_source]', source)
         a.setAttribute('href', url.toString())
         a.dataset.stPatched = slug
       } catch (e) {

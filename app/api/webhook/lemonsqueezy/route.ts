@@ -43,6 +43,11 @@ export async function POST(request: Request) {
   // on the visitors table or the email ever being identify()'d.
   const customData = payload.meta?.custom_data ?? {};
   const stRef: string | undefined = customData.st_ref;
+  // real ground-truth source, from document.referrer at click time —
+  // this is what fixes "source shows LinkedIn even though the sale came
+  // from Twitter." post.channel is now only a fallback for old links
+  // created before this field existed.
+  const stSource: string | undefined = customData.st_source;
 
   let post: { id: string; channel: string | null; slug: string } | null = null;
 
@@ -96,8 +101,8 @@ export async function POST(request: Request) {
     amount_cents: amountCents,
     currency: attrs.currency ?? "USD",
     product_name: attrs.first_order_item?.product_name ?? null,
-    source: post?.channel ?? visitor?.last_source ?? null,
-    first_source: visitor?.first_source ?? (post ? post.channel : null),
+    source: stSource ?? post?.channel ?? visitor?.last_source ?? null,
+    first_source: stSource ?? visitor?.first_source ?? (post ? post.channel : null),
     first_post_id: visitor?.first_post_id ?? postId,
     attribution_model: stRef ? "click_ref" : "last_touch",
     raw_payload: payload,

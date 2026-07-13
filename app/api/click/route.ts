@@ -14,8 +14,28 @@ function parseUA(ua: string) {
   return { device, browser, os }
 }
 
+// Server-side fallback parse, in case a client ever posts here without
+// `source` (e.g. an older cached track.js). Same logic as track.js's
+// parseReferrerSource, kept in sync manually since one runs in the
+// browser and one runs here.
+function parseReferrerSource(referrer: string | null): string {
+  if (!referrer) return 'direct'
+  try {
+    const host = new URL(referrer).hostname.replace(/^www\./, '')
+    if (/linkedin\.com|lnkd\.in/.test(host)) return 'linkedin'
+    if (/twitter\.com|t\.co|x\.com/.test(host)) return 'twitter'
+    if (/facebook\.com|fb\.me|fb\.watch/.test(host)) return 'facebook'
+    if (/instagram\.com/.test(host)) return 'instagram'
+    if (/threads\.net/.test(host)) return 'threads'
+    if (/bsky\.app/.test(host)) return 'bluesky'
+    return host
+  } catch {
+    return 'direct'
+  }
+}
+
 export async function POST(request: Request) {
-  const { slug, site_key, referrer } = await request.json()
+  const { slug, site_key, referrer, source: clientSource } = await request.json()
   if (!slug) return withCors(NextResponse.json({ error: 'slug required' }, { status: 400 }))
 
   const supabase = createServiceClient()
@@ -32,6 +52,9 @@ export async function POST(request: Request) {
   const ua = request.headers.get('user-agent') ?? ''
   const ipHash = hashIp(ip)
   const { device, browser, os } = parseUA(ua)
+  // prefer the source track.js already computed; fall back to parsing
+  // the referrer ourselves if an older client didn't send one
+  const source = clientSource || parseReferrerSource(referrer ?? null)
 
   // has this ip_hash clicked this post before?
   const { count } = await supabase
@@ -42,7 +65,7 @@ export async function POST(request: Request) {
 
   const isUnique = (count ?? 0) === 0
   const country = request.headers.get('x-vercel-ip-country') || 'unknown'
-const city = request.headers.get('x-vercel-ip-city') || null
+  const city = request.headers.get('x-vercel-ip-city') || null
 
   await supabase.from('clicks').insert({
     post_id: post.id,
@@ -53,11 +76,11 @@ const city = request.headers.get('x-vercel-ip-city') || null
     browser,
     os,
     referrer: referrer ?? null,
+    source, // real ground-truth platform, not post.channel
     user_agent: ua,
     is_unique: isUnique,
     country,
     city,
-    // country/city: add a geo lookup here later (e.g. Vercel request.geo, or ipapi.co)
   })
 
   // bump denormalized counters on the post
