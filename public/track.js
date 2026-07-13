@@ -88,4 +88,50 @@
     const emailInput = e.target.querySelector && e.target.querySelector('input[type="email"]')
     if (emailInput && emailInput.value) window.SourceTruth.identify(emailInput.value)
   })
+
+  // ── NEW: attach attribution to Lemon Squeezy checkout links ──
+  // This is the actual missing link. Without this, nothing ever tells
+  // Lemon Squeezy which slug a purchase came from — visitors/identify
+  // never sees LS checkout emails (that form lives on LS's own domain/
+  // iframe), so this was the only way attribution could have worked.
+  //
+  // Lemon.js (the overlay embed) reads the href on the <a> at click time,
+  // and passes any checkout[custom][...] query params straight through
+  // to `meta.custom_data` in the webhook payload. So we just need to make
+  // sure the slug is sitting in the href before the click happens.
+  
+  const LS_LINK_PATTERN = /lemonsqueezy\.com\/(checkout|buy)/i
+
+  function isLemonSqueezyLink(href) {
+    return LS_LINK_PATTERN.test(href)
+  }
+
+  function attachRefToCheckoutLinks() {
+    const slug = getStoredSlug()
+    if (!slug) return
+
+    document.querySelectorAll('a[href]').forEach(function(a) {
+      const href = a.getAttribute('href')
+      if (!href || !isLemonSqueezyLink(href)) return
+      // already patched, don't re-append on repeat DOM scans
+      if (a.dataset.stPatched === slug) return
+
+      try {
+        const url = new URL(href, window.location.href)
+        url.searchParams.set('checkout[custom][st_ref]', slug)
+        if (SITE_KEY) url.searchParams.set('checkout[custom][st_site]', SITE_KEY)
+        a.setAttribute('href', url.toString())
+        a.dataset.stPatched = slug
+      } catch (e) {
+        // malformed href, skip it
+      }
+    })
+  }
+
+  attachRefToCheckoutLinks()
+
+  // Lemon.js buttons are sometimes rendered after this script runs
+  // (client-side frameworks, lazy widgets) — catch late arrivals.
+  const observer = new MutationObserver(attachRefToCheckoutLinks)
+  observer.observe(document.body || document.documentElement, { childList: true, subtree: true })
 })()
