@@ -50,17 +50,25 @@ export async function POST(request: Request) {
 
   const postId = visitor?.last_post_id ?? null;
 
+
+  // Inside your webhook handler, after finding the post:
+const { data: post } = await supabase
+  .from('posts')
+  .select('id, channel, slug')
+  .eq('id', postId)  // or however you match it
+  .maybeSingle()
+
   const { error } = await supabase.from("conversions").insert({
     user_id: conn?.user_id,
     site_id: conn?.site_id,
-    post_id: postId,
+    post_id: post?.id,
     provider: "lemon_squeezy",
     order_id: orderId,
     customer_email: email,
     amount_cents: amountCents,
     currency: attrs.currency ?? "USD",
     product_name: attrs.first_order_item?.product_name ?? null,
-    source: visitor?.last_source ?? null,
+    source: post?.channel ?? visitor?.last_source ?? null,
     first_source: visitor?.first_source ?? null,
     first_post_id: visitor?.first_post_id ?? null,
     attribution_model: "last_touch",
