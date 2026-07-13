@@ -4,8 +4,6 @@ import { NextResponse } from "next/server";
 import crypto from "crypto";
 
 export async function POST(request: Request) {
-  console.log("showing lemon squeezy order from webhook route", request);
-
   const rawBody = await request.text();
   const signature = request.headers.get("x-signature") ?? "";
   const digest = crypto
@@ -27,41 +25,71 @@ export async function POST(request: Request) {
 
   const supabase = createServiceClient();
 
-  // find the site via the store, or however you map LS store → your site — depends on payment_connections
-  // app/api/webhook/lemonsqueezy/route.ts — swap the lookup
   const { data: conn } = await supabase
     .from("payment_connections")
     .select("user_id, site_id")
     .eq("provider", "lemon_squeezy")
     .eq("store_id", String(attrs.store_id))
-    .maybeSingle(); // won't throw if no match — logs a clean null instead
+    .maybeSingle();
 
   if (!conn) {
     console.error("No payment_connections match for store_id:", attrs.store_id);
     return NextResponse.json({ ok: true }); // acknowledge receipt so LS doesn't retry forever
   }
 
-  // attribution lookup: match email to a visitor for first/last touch
-  const { data: visitor } = await supabase
-    .from("visitors")
-    .select("first_source, first_post_id, last_source, last_post_id")
-    .eq("email", email)
-    .maybeSingle();
+  // ── Attribution: custom_data.st_ref is the primary signal now ──
+  // This is what track.js writes onto the Lemon.js checkout link before
+  // the click happens. It's a direct slug -> post lookup, no dependency
+  // on the visitors table or the email ever being identify()'d.
+  const customData = payload.meta?.custom_data ?? {};
+  const stRef: string | undefined = customData.st_ref;
 
-  const postId = visitor?.last_post_id ?? null;
+  let post: { id: string; channel: string | null; slug: string } | null = null;
 
+  if (stRef) {
+    const { data } = await supabase
+      .from("posts")
+      .select("id, channel, slug")
+      .eq("slug", stRef)
+      .maybeSingle();
+    post = data ?? null;
+  }
 
-  // Inside your webhook handler, after finding the post:
-const { data: post } = await supabase
-  .from('posts')
-  .select('id, channel, slug')
-  .eq('id', postId)  // or however you match it
-  .maybeSingle()
+  // Fallback: old visitors-based last-touch lookup, for sales that
+  // somehow didn't carry custom_data (e.g. a checkout link created
+  // before this track.js patch went out, or a manually-shared checkout
+  // URL with no ref at all).
+  let visitor: {
+    first_source: string | null;
+    first_post_id: string | null;
+    last_source: string | null;
+    last_post_id: string | null;
+  } | null = null;
+
+  if (!post && email) {
+    const { data } = await supabase
+      .from("visitors")
+      .select("first_source, first_post_id, last_source, last_post_id")
+      .eq("email", email)
+      .maybeSingle();
+    visitor = data ?? null;
+
+    if (visitor?.last_post_id) {
+      const { data: fallbackPost } = await supabase
+        .from("posts")
+        .select("id, channel, slug")
+        .eq("id", visitor.last_post_id)
+        .maybeSingle();
+      post = fallbackPost ?? null;
+    }
+  }
+
+  const postId = post?.id ?? null;
 
   const { error } = await supabase.from("conversions").insert({
-    user_id: conn?.user_id,
-    site_id: conn?.site_id,
-    post_id: post?.id,
+    user_id: conn.user_id,
+    site_id: conn.site_id,
+    post_id: postId,
     provider: "lemon_squeezy",
     order_id: orderId,
     customer_email: email,
@@ -69,9 +97,9 @@ const { data: post } = await supabase
     currency: attrs.currency ?? "USD",
     product_name: attrs.first_order_item?.product_name ?? null,
     source: post?.channel ?? visitor?.last_source ?? null,
-    first_source: visitor?.first_source ?? null,
-    first_post_id: visitor?.first_post_id ?? null,
-    attribution_model: "last_touch",
+    first_source: visitor?.first_source ?? (post ? post.channel : null),
+    first_post_id: visitor?.first_post_id ?? postId,
+    attribution_model: stRef ? "click_ref" : "last_touch",
     raw_payload: payload,
   });
 
