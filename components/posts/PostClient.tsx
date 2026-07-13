@@ -6,7 +6,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { PLATFORM_META } from "@/lib/dummy-data";
-import { DbPost, SocialChannel } from "@/types/posts";
+import { DbPost } from "@/types/posts";
 import { formatMoneyFull, formatNumber, timeAgo } from "@/lib/utils";
 
 const STATUS_STYLES: Record<string, string> = {
@@ -80,8 +80,6 @@ export default function PostClient({ posts: initialPosts }: PostClientProps) {
 
     router.refresh(); // re-syncs with server state (e.g. posted_at)
   }
-
-  console.log("showing post from postClient page", posts);
 
   return (
     <AppShell>
