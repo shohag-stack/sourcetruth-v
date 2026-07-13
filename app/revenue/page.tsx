@@ -34,6 +34,7 @@ const CHANNEL_META: Record<string, { name: string; color: string; bgColor: strin
   instagram: { name: 'Instagram', color: '#E1306C', bgColor: '#FFF0F5', icon: '◎' },
   threads: { name: 'Threads', color: '#000000', bgColor: '#F5F5F5', icon: '@' },
   bluesky: { name: 'Bluesky', color: '#0085FF', bgColor: '#EFF6FF', icon: '🦋' },
+  direct: { name: 'Direct', color: '#5B5B5B', bgColor: '#F7F6F4', icon: '→' },
 }
 
 export default async function RevenuePage() {
@@ -59,7 +60,6 @@ export default async function RevenuePage() {
     .eq('connected', true)
 
   // ── Conversions joined with posts ──────────────────────────
-  // We join posts so we can show the post content in the table
   const { data: conversions } = site
     ? await supabase
         .from('conversions')
@@ -90,17 +90,13 @@ export default async function RevenuePage() {
 
   const rows = conversions ?? []
 
-  // ── Aggregate totals ───────────────────────────────────────
   const totalCents = rows.reduce((sum, c) => sum + (c.amount_cents ?? 0), 0)
 
-  // Revenue per provider
   const byProvider = rows.reduce<Record<string, number>>((acc, c) => {
     acc[c.provider] = (acc[c.provider] ?? 0) + (c.amount_cents ?? 0)
     return acc
   }, {})
 
-  // ── CSV export ─────────────────────────────────────────────
-  // TODO: move to /api/revenue/export route for large datasets
   const csvRows = [
     ['Customer', 'Provider', 'Product', 'Amount', 'Source', 'Country', 'Date'],
     ...rows.map(c => [
@@ -120,7 +116,6 @@ export default async function RevenuePage() {
     <AppShell>
       <div className="p-8">
 
-        {/* Header */}
         <div className="mb-6">
           <h1 className="text-heading-lg text-ink mb-0.5">Revenue</h1>
           <p className="text-body-sm text-muted">
@@ -128,7 +123,6 @@ export default async function RevenuePage() {
           </p>
         </div>
 
-        {/* No site state */}
         {!site && (
           <div className="card p-10 text-center">
             <div className="text-4xl mb-3">💰</div>
@@ -140,9 +134,7 @@ export default async function RevenuePage() {
 
         {site && (
           <>
-            {/* Totals row */}
             <div className="card mb-6 grid grid-cols-2 lg:grid-cols-4 divide-y lg:divide-y-0 lg:divide-x divide-line">
-              {/* Total */}
               <div className="p-5">
                 <div className="text-body-sm text-body mb-2">Total Revenue</div>
                 <div className="text-2xl font-bold text-ink tabular mb-1">
@@ -153,7 +145,6 @@ export default async function RevenuePage() {
                 </div>
               </div>
 
-              {/* Per provider */}
               {(connections ?? []).slice(0, 3).map(conn => {
                 const meta = PROVIDER_META[conn.provider] ?? { name: conn.provider, icon: '◈' }
                 const providerTotal = byProvider[conn.provider] ?? 0
@@ -172,7 +163,6 @@ export default async function RevenuePage() {
                 )
               })}
 
-              {/* Pad empty slots if fewer than 3 providers connected */}
               {Array.from({ length: Math.max(0, 3 - (connections?.length ?? 0)) }).map((_, i) => (
                 <div key={i} className="p-5 flex items-center justify-center">
                   <a href="/connect" className="text-body-sm text-muted hover:text-primary transition-colors">
@@ -182,7 +172,6 @@ export default async function RevenuePage() {
               ))}
             </div>
 
-            {/* No connections warning */}
             {(connections ?? []).length === 0 && (
               <div className="bg-primary-tint border border-primary/20 rounded-2xl p-4 mb-6 flex items-start gap-3">
                 <span className="text-primary text-lg">⚠️</span>
@@ -194,7 +183,6 @@ export default async function RevenuePage() {
               </div>
             )}
 
-            {/* Attribution note */}
             <div className="bg-primary-tint rounded-2xl p-4 mb-6 flex items-start gap-3">
               <span className="text-primary text-lg">💡</span>
               <div className="text-body-sm text-primary leading-relaxed">
@@ -204,7 +192,6 @@ export default async function RevenuePage() {
               </div>
             </div>
 
-            {/* Revenue table */}
             <div className="card overflow-hidden">
               <div className="px-5 py-4 border-b border-line flex items-center justify-between">
                 <h2 className="text-heading-sm text-ink">
@@ -226,7 +213,6 @@ export default async function RevenuePage() {
                 )}
               </div>
 
-              {/* Empty state */}
               {rows.length === 0 ? (
                 <div className="p-12 text-center">
                   <div className="text-4xl mb-3">🎯</div>
@@ -255,7 +241,19 @@ export default async function RevenuePage() {
                     {rows.map(conv => {
                       const providerMeta = PROVIDER_META[conv.provider] ?? { name: conv.provider, icon: '◈' }
                       const post = Array.isArray(conv.posts) ? conv.posts[0] : conv.posts
-                      const channelMeta = post?.channel ? CHANNEL_META[post.channel] : null
+
+                      // FIX: prioritize the real, actual source (conv.source —
+                      // comes from the referrer at click time, via webhook
+                      // custom_data) over the post's *declared/planned* channel.
+                      // Before, this always showed post.channel because a post
+                      // almost always exists, so the real source never won,
+                      // even when it disagreed with reality (the bug you found).
+                      const channelMeta = conv.source
+                        ? CHANNEL_META[conv.source] ?? { name: conv.source, color: '#5B5B5B', bgColor: '#F7F6F4', icon: '●' }
+                        : post?.channel
+                          ? CHANNEL_META[post.channel]
+                          : null
+
                       const postPreview = post?.content
                         ? post.content.slice(0, 60) + (post.content.length > 60 ? '...' : '')
                         : null
@@ -263,7 +261,6 @@ export default async function RevenuePage() {
                       return (
                         <tr key={conv.id} className="border-b border-line hover:bg-surface-muted transition-colors last:border-0">
 
-                          {/* Customer */}
                           <td className="pl-5 pr-4 py-3.5">
                             <div className="flex items-center gap-2">
                               <div className="w-7 h-7 rounded-full bg-surface-muted flex items-center justify-center text-[11px] font-bold text-body flex-shrink-0">
@@ -280,7 +277,6 @@ export default async function RevenuePage() {
                             </div>
                           </td>
 
-                          {/* Source post */}
                           <td className="px-4 py-3.5 max-w-[180px]">
                             {postPreview ? (
                               <p className="text-[12px] text-success font-medium truncate" title={post?.content}>
@@ -293,7 +289,7 @@ export default async function RevenuePage() {
                             )}
                           </td>
 
-                          {/* Channel */}
+                          {/* Channel — now shows the real, actual source */}
                           <td className="px-4 py-3.5">
                             {channelMeta ? (
                               <span
@@ -303,32 +299,26 @@ export default async function RevenuePage() {
                                 {channelMeta.icon} {channelMeta.name}
                               </span>
                             ) : (
-                              <span className="text-caption text-muted normal-case font-normal">
-                                {conv.source ?? '—'}
-                              </span>
+                              <span className="text-caption text-muted normal-case font-normal">—</span>
                             )}
                           </td>
 
-                          {/* Provider */}
                           <td className="px-4 py-3.5">
                             <span className="text-body-sm text-body">
                               {providerMeta.icon} {providerMeta.name}
                             </span>
                           </td>
 
-                          {/* Product */}
                           <td className="px-4 py-3.5 text-body-sm text-body">
                             {conv.product_name ?? '—'}
                           </td>
 
-                          {/* Amount */}
                           <td className="px-4 py-3.5">
                             <span className="text-body-sm font-bold text-success tabular">
                               +{formatMoney(conv.amount_cents)}
                             </span>
                           </td>
 
-                          {/* When */}
                           <td className="px-4 pr-5 py-3.5 text-caption text-muted normal-case font-normal">
                             {timeAgo(conv.received_at)}
                           </td>
