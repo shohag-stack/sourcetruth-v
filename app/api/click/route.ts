@@ -41,6 +41,8 @@ export async function POST(request: Request) {
     .eq('ip_hash', ipHash)
 
   const isUnique = (count ?? 0) === 0
+  const country = request.headers.get('x-vercel-ip-country') || 'unknown'
+const city = request.headers.get('x-vercel-ip-city') || null
 
   await supabase.from('clicks').insert({
     post_id: post.id,
@@ -53,6 +55,8 @@ export async function POST(request: Request) {
     referrer: referrer ?? null,
     user_agent: ua,
     is_unique: isUnique,
+    country,
+    city,
     // country/city: add a geo lookup here later (e.g. Vercel request.geo, or ipapi.co)
   })
 
