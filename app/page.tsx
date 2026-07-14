@@ -1,3 +1,4 @@
+'use client'
 // app/page.tsx
 import Link from 'next/link'
 
@@ -44,6 +45,8 @@ export default function LandingPage() {
           <Link href="/connect" className="btn-secondary text-base px-7 py-3">
             How it works
           </Link>
+
+          <Link href={'/'} className='btn-primary text-base px-7 py-3' onClick={(e)=> console.log(e)}> Click Me </Link>
         </div>
       </section>
 
