@@ -1,5 +1,6 @@
 // app/analytics/traffic/page.tsx
 import { AppShell } from '@/components/layout/AppShell'
+import { countryFlag } from '@/lib/countryFlag'
 import { createClient } from '@/utils/supabase/server'
 import Link from 'next/link'
 import { redirect } from 'next/navigation'
@@ -61,17 +62,6 @@ function RankedList({
       )}
     </div>
   )
-}
-
-// ─── Country flag emoji ───────────────────────────────────────
-function countryFlag(code: string): string {
-  if (!code || code === 'unknown') return '🌍'
-  const flag = code
-    .toUpperCase()
-    .split('')
-    .map(c => String.fromCodePoint(0x1f1e6 + c.charCodeAt(0) - 65))
-    .join('')
-  return flag
 }
 
 // ─── Page ─────────────────────────────────────────────────────
