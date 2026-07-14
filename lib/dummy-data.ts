@@ -235,6 +235,13 @@ export const DUMMY_OVERVIEW = {
   conversionRate: 1.07,
 }
 
+// Same fallback pattern as the Analytics page — 'direct' (no referrer)
+// or a bare hostname from an unrecognized platform are both real
+// possibilities now that source comes from actual referrers, not a
+// fixed enum.
+export const DIRECT_META = { name: "Direct", color: "#5B5B5B", bgColor: "#F7F6F4", icon: "→" };
+export const FALLBACK_META = { name: "Other", color: "#5B5B5B", bgColor: "#F7F6F4", icon: "●" };
+
 // ─── Social platform meta ─────────────────────────────────────────────────────
 export const PLATFORM_META: Record<SocialChannel, { name: string; color: string; bgColor: string; icon: string }> = {
   linkedin: { name: 'LinkedIn', color: '#0077B5', bgColor: '#EFF7FF', icon: '' },

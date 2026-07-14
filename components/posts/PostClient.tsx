@@ -5,9 +5,9 @@ import { AppShell } from "@/components/layout/AppShell";
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { PLATFORM_META } from "@/lib/dummy-data";
 import { DbPost } from "@/types/posts";
 import { formatMoneyFull, formatNumber, timeAgo } from "@/lib/utils";
+import { metaFor } from "@/lib/metaFor";
 
 const STATUS_STYLES: Record<string, string> = {
   posted: "badge-success",
@@ -23,17 +23,6 @@ const STATUS_LABELS: Record<string, string> = {
   archived: "○ Archived",
 };
 
-// Same fallback pattern as the Analytics page — 'direct' (no referrer)
-// or a bare hostname from an unrecognized platform are both real
-// possibilities now that source comes from actual referrers, not a
-// fixed enum.
-const DIRECT_META = { name: "Direct", color: "#5B5B5B", bgColor: "#F7F6F4", icon: "→" };
-const FALLBACK_META = { name: "Other", color: "#5B5B5B", bgColor: "#F7F6F4", icon: "●" };
-
-function metaFor(source: string) {
-  if (source === "direct") return DIRECT_META;
-  return PLATFORM_META[source as keyof typeof PLATFORM_META] ?? { ...FALLBACK_META, name: source };
-}
 
 interface PostClientProps {
   posts: DbPost[];

@@ -6,17 +6,11 @@ import { formatMoneyFull, formatNumber, trendLabel } from "@/lib/utils";
 import { createClient } from "@/utils/supabase/server";
 import { redirect } from "next/navigation";
 import Link from "next/link";
+import { metaFor } from "@/lib/metaFor";
 
 // Fallback meta for sources PLATFORM_META doesn't know about — 'direct'
 // (no referrer at all) or a bare hostname from an unrecognized platform,
 // both real possibilities now that source comes from actual referrers.
-const FALLBACK_META = { name: "Other", color: "#5B5B5B", bgColor: "#F7F6F4", icon: "●" };
-const DIRECT_META = { name: "Direct", color: "#5B5B5B", bgColor: "#F7F6F4", icon: "→" };
-
-function metaFor(source: string) {
-  if (source === "direct") return DIRECT_META;
-  return PLATFORM_META[source as keyof typeof PLATFORM_META] ?? { ...FALLBACK_META, name: source };
-}
 
 function pctChange(current: number, previous: number): number {
   if (previous === 0) return current > 0 ? 100 : 0;
@@ -267,6 +261,7 @@ export default async function AnalyticsPage() {
             than one real source. Showing both side by side, instead of
             merging them into one label, is the point: the mismatch
             between plan and reality is the actual insight. */}
+            
         <div className="card overflow-hidden">
           <div className="px-5 py-4 border-b border-line">
             <h2 className="text-heading-sm text-ink">Top Posts by Revenue</h2>
