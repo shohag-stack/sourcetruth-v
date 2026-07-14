@@ -10,9 +10,13 @@ export async function POST(request: Request) {
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
+  // channel is now optional — attribution comes from the real referrer
+  // at click time, not a declared plan, so we no longer require picking
+  // one when creating a post. Column stays on the table (see note below),
+  // it just isn't collected or shown as attribution anymore.
   const { content, channel, destination, campaign, site_id } = await request.json()
-  if (!content || !channel || !destination || !site_id) {
-    return NextResponse.json({ error: 'content, channel, destination, site_id required' }, { status: 400 })
+  if (!content || !destination || !site_id) {
+    return NextResponse.json({ error: 'content, destination, site_id required' }, { status: 400 })
   }
 
   const slug = nanoid()
@@ -26,7 +30,7 @@ export async function POST(request: Request) {
       user_id: user.id,
       site_id,
       content,
-      channel,
+      channel: channel ?? null,
       destination,
       campaign,
       slug,

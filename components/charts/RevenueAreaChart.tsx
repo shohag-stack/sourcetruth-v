@@ -11,11 +11,28 @@ const CHANNELS = [
   { key: 'threads', color: '#0F172A' },
 ]
 
-export function RevenueAreaChart() {
-  const data = DUMMY_DAILY_REVENUE.filter((_, i) => i % 2 === 0) // every other day to avoid crowding
+export interface RevenueAreaChartDatum {
+  date: string
+  linkedin?: number
+  instagram?: number
+  twitter?: number
+  facebook?: number
+  threads?: number
+  total?: number
+}
+
+interface RevenueAreaChartProps {
+  // Optional — falls back to DUMMY_DAILY_REVENUE if not provided, so
+  // nothing breaks anywhere this is still called without real data.
+  data?: RevenueAreaChartDatum[]
+}
+
+export function RevenueAreaChart({ data }: RevenueAreaChartProps) {
+  const chartData = data ?? DUMMY_DAILY_REVENUE.filter((_, i) => i % 2 === 0) // every other day to avoid crowding
+
   return (
     <ResponsiveContainer width="100%" height={200}>
-      <AreaChart data={data} margin={{ top: 4, right: 4, left: -24, bottom: 0 }}>
+      <AreaChart data={chartData} margin={{ top: 4, right: 4, left: -24, bottom: 0 }}>
         <defs>
           {CHANNELS.map(c => (
             <linearGradient key={c.key} id={`grad-${c.key}`} x1="0" y1="0" x2="0" y2="1">
@@ -24,12 +41,12 @@ export function RevenueAreaChart() {
             </linearGradient>
           ))}
         </defs>
-        <CartesianGrid strokeDasharray="3 3" stroke="#E8ECF2" vertical={false} />
-        <XAxis dataKey="date" tick={{ fontSize: 10, fill: '#94A3B8' }} tickLine={false} axisLine={false} />
-        <YAxis tick={{ fontSize: 10, fill: '#94A3B8' }} tickLine={false} axisLine={false} tickFormatter={v => `$${v}`} />
+        <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" vertical={false} />
+        <XAxis dataKey="date" tick={{ fontSize: 10, fill: 'var(--muted)' }} tickLine={false} axisLine={false} />
+        <YAxis tick={{ fontSize: 10, fill: 'var(--muted)' }} tickLine={false} axisLine={false} tickFormatter={v => `$${v}`} />
         <Tooltip
-          contentStyle={{ background: '#fff', border: '1px solid #E8ECF2', borderRadius: 12, fontSize: 12, boxShadow: '0 4px 12px rgba(0,0,0,0.08)' }}
-          labelStyle={{ color: '#94A3B8', fontSize: 11, marginBottom: 4 }}
+          contentStyle={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 12, fontSize: 12, boxShadow: '0 4px 12px rgba(26,26,26,0.08)' }}
+          labelStyle={{ color: 'var(--muted)', fontSize: 11, marginBottom: 4 }}
           formatter={(val: number, name: string) => [`$${val}`, name.charAt(0).toUpperCase() + name.slice(1)]}
         />
         {CHANNELS.map(c => (

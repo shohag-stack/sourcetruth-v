@@ -119,7 +119,7 @@ export default function NewLinkClient({ sites }: NewLinkClientProps) {
               </div>
             )}
 
-            <div className="card shadow-card p-5">
+            {/* <div className="card shadow-card p-5">
               <label className="block text-[11px] font-semibold text-[#94A3B8] uppercase tracking-widest mb-3">
                 Platform
               </label>
@@ -139,7 +139,7 @@ export default function NewLinkClient({ sites }: NewLinkClientProps) {
                   )
                 })}
               </div>
-            </div>
+            </div> */}
 
             <div className="card shadow-card p-5">
               <label className="block text-[11px] font-semibold text-[#94A3B8] uppercase tracking-widest mb-2">

@@ -23,11 +23,31 @@ const STATUS_LABELS: Record<string, string> = {
   archived: "○ Archived",
 };
 
-interface PostClientProps {
-  posts: DbPost[];
+// Same fallback pattern as the Analytics page — 'direct' (no referrer)
+// or a bare hostname from an unrecognized platform are both real
+// possibilities now that source comes from actual referrers, not a
+// fixed enum.
+const DIRECT_META = { name: "Direct", color: "#5B5B5B", bgColor: "#F7F6F4", icon: "→" };
+const FALLBACK_META = { name: "Other", color: "#5B5B5B", bgColor: "#F7F6F4", icon: "●" };
+
+function metaFor(source: string) {
+  if (source === "direct") return DIRECT_META;
+  return PLATFORM_META[source as keyof typeof PLATFORM_META] ?? { ...FALLBACK_META, name: source };
 }
 
-export default function PostClient({ posts: initialPosts }: PostClientProps) {
+interface PostClientProps {
+  posts: DbPost[];
+  // real source(s) that drove sales for each post, keyed by post id —
+  // fetched server-side in app/posts/page.tsx since this is a client
+  // component. This is now the ONLY channel info shown anywhere on this
+  // page — declared/planned channel (post.channel) is no longer
+  // collected at creation or displayed. The column still exists in the
+  // DB (kept for historical data + as a webhook attribution fallback),
+  // it's just never surfaced as if it were a fact.
+  postSources: Record<string, string[]>;
+}
+
+export default function PostClient({ posts: initialPosts, postSources }: PostClientProps) {
   const router = useRouter();
   const [posts, setPosts] = useState<DbPost[]>(initialPosts);
   const [copiedId, setCopiedId] = useState<string | null>(null);
@@ -132,21 +152,17 @@ export default function PostClient({ posts: initialPosts }: PostClientProps) {
                 ? (post.total_conversions / post.total_clicks) * 100
                 : 0;
 
-            const meta = PLATFORM_META[post.channel];
+            const actualSources = postSources[post.id] ?? [];
 
             return (
               <div key={post.id} className="card p-4 flex flex-col">
-                {/* Top row — channel pill + status + timestamp */}
+                {/* Top row — status + timestamp only. No declared channel
+                    badge anymore; the only channel info this page shows
+                    now is the real source, below, once there's a sale. */}
                 <div className="flex items-center justify-between gap-2 mb-3 flex-wrap">
-                  <div className="flex items-center gap-2">
-                    <span className="badge-gray">
-                      {meta?.icon} {meta?.name ?? post.channel}
-                    </span>
-
-                    <span className={STATUS_STYLES[post.status]}>
-                      {STATUS_LABELS[post.status]}
-                    </span>
-                  </div>
+                  <span className={STATUS_STYLES[post.status]}>
+                    {STATUS_LABELS[post.status]}
+                  </span>
                   <span className="text-[11px] text-muted">
                     {timeAgo(post.created_at)}
                   </span>
@@ -161,6 +177,27 @@ export default function PostClient({ posts: initialPosts }: PostClientProps) {
 
                 {post.status === "posted" ? (
                   <>
+                    {/* Real source(s) this post actually sold through */}
+                    <div className="flex items-center gap-1.5 flex-wrap mb-3 text-caption normal-case font-normal">
+                      <span className="text-muted">Sold via:</span>
+                      {actualSources.length > 0 ? (
+                        actualSources.map((src) => {
+                          const meta = metaFor(src);
+                          return (
+                            <span
+                              key={src}
+                              className="text-[10px] font-bold px-1.5 py-0.5 rounded"
+                              style={{ backgroundColor: meta.bgColor, color: meta.color }}
+                            >
+                              {meta.icon} {meta.name}
+                            </span>
+                          );
+                        })
+                      ) : (
+                        <span className="text-muted">No sales yet</span>
+                      )}
+                    </div>
+
                     {/* Revenue line */}
                     <div className="flex items-baseline justify-between mb-3">
                       <span className="text-heading-sm text-ink tabular">
