@@ -30,6 +30,25 @@ export async function POST(request: Request) {
   url.searchParams.set("st", slug);
   const tracked_link = url.toString(); // real destination, not a redirect domain — per your trust-issue call
 
+
+  // check posts limit
+
+  const { data: profile } = await supabase.from('users').select('plan, links_limit').eq('id', user.id).single()
+    const { count } = await supabase
+    .from('posts')
+    .select('id', { count: 'exact', head: true })
+    .eq('user_id', user.id)
+
+
+  const limit = profile?.links_limit ?? 1
+    if (limit !== -1 && (count ?? 0) >= limit) {
+    return NextResponse.json(
+      { error: `Links limit reached. Upgrade your plan to add more sites.` },
+      { status: 403 }
+    )
+  }
+
+
   const { data, error } = await supabase
     .from("posts")
     .insert({
