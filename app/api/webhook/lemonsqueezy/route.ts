@@ -48,6 +48,14 @@ export async function POST(request: Request) {
   // from Twitter." post.channel is now only a fallback for old links
   // created before this field existed.
   const stSource: string | undefined = customData.st_source;
+  // NEW — DataFast-style fields, present for every sale now (not just
+  // ones with a tracked-link ref), since track.js attaches these
+  // unconditionally as of the general first-touch patch.
+  const stDevice: string | undefined = customData.st_device;
+  const stOs: string | undefined = customData.st_os;
+  const stBrowser: string | undefined = customData.st_browser;
+  const stFirstSeenMs: string | undefined = customData.st_first_seen;
+  const firstSeenAt = stFirstSeenMs ? new Date(Number(stFirstSeenMs)).toISOString() : null;
 
   let post: { id: string; channel: string | null; slug: string } | null = null;
 
@@ -105,6 +113,10 @@ export async function POST(request: Request) {
     first_source: stSource ?? visitor?.first_source ?? (post ? post.channel : null),
     first_post_id: visitor?.first_post_id ?? postId,
     attribution_model: stRef ? "click_ref" : "last_touch",
+    device: stDevice ?? null,
+    os: stOs ?? null,
+    browser: stBrowser ?? null,
+    first_seen_at: firstSeenAt,
     raw_payload: payload,
   });
 

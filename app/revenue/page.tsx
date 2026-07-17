@@ -1,5 +1,6 @@
 // app/revenue/page.tsx
 import { AppShell } from '@/components/layout/AppShell'
+import { countryFlag } from '@/lib/countryFlag'
 import { createClient } from '@/utils/supabase/server'
 import { redirect } from 'next/navigation'
 
@@ -19,6 +20,32 @@ function timeAgo(dateStr: string): string {
   return `${Math.floor(diff / 86400)}d ago`
 }
 
+// Time from first-ever visit to purchase — the "2 days" DataFast shows.
+// Only computable when first_seen_at made it through custom_data (every
+// sale going forward should have this; older sales before the track.js
+// patch won't).
+function timeToConvert(firstSeenAt: string | null, receivedAt: string): string | null {
+  if (!firstSeenAt) return null
+  const ms = new Date(receivedAt).getTime() - new Date(firstSeenAt).getTime()
+  if (ms < 0) return null
+  const seconds = ms / 1000
+  if (seconds < 3600) return 'Same visit'
+  if (seconds < 86400) return `${Math.round(seconds / 3600)}h`
+  return `${Math.round(seconds / 86400)}d`
+}
+
+// Masks an email like DataFast masks names: "dor******@example.com" style
+// masking for the local part, since we don't reliably have a real name
+// field from Lemon Squeezy's payload — worth confirming attrs.billing_name
+// or similar exists before switching to a real name.
+function maskEmail(email: string | null): string {
+  if (!email) return 'Unknown'
+  const [local, domain] = email.split('@')
+  if (!domain) return email
+  const visible = local.slice(0, 3)
+  return `${visible}${'*'.repeat(Math.max(local.length - 3, 3))}@${domain}`
+}
+
 const PROVIDER_META: Record<string, { name: string; icon: string }> = {
   lemon_squeezy: { name: 'Lemon Squeezy', icon: '🍋' },
   stripe: { name: 'Stripe', icon: '◈' },
@@ -36,6 +63,17 @@ const CHANNEL_META: Record<string, { name: string; color: string; bgColor: strin
   bluesky: { name: 'Bluesky', color: '#0085FF', bgColor: '#EFF6FF', icon: '🦋' },
   direct: { name: 'Direct', color: '#5B5B5B', bgColor: '#F7F6F4', icon: '→' },
 }
+
+function sourceMeta(source: string | null) {
+  if (!source) return { name: 'Unknown', color: '#5B5B5B', bgColor: '#F7F6F4', icon: '●' }
+  return CHANNEL_META[source] ?? { name: source, color: '#5B5B5B', bgColor: '#F7F6F4', icon: '🔗' } // bare hostname, e.g. a backlink
+}
+
+const DEVICE_ICON: Record<string, string> = { desktop: '🖥️', mobile: '📱', tablet: '📱' }
+const OS_ICON: Record<string, string> = { mac: '', windows: '🪟', ios: '', android: '🤖' }
+const OS_LABEL: Record<string, string> = { mac: 'Mac OS', windows: 'Windows', ios: 'iOS', android: 'Android', other: 'Unknown OS' }
+const BROWSER_ICON: Record<string, string> = { chrome: '🌐', safari: '🧭', firefox: '🦊' }
+const BROWSER_LABEL: Record<string, string> = { chrome: 'Chrome', safari: 'Safari', firefox: 'Firefox', other: 'Unknown browser' }
 
 export default async function RevenuePage() {
   const supabase = await createClient()
@@ -59,7 +97,9 @@ export default async function RevenuePage() {
     .eq('user_id', user.id)
     .eq('connected', true)
 
-  // ── Conversions joined with posts ──────────────────────────
+  // ── Conversions joined with posts — post attribution stays,
+  // it's SourceTruth's own differentiator on top of the DataFast-style
+  // fields (device/os/browser/first_seen/source) ──
   const { data: conversions } = site
     ? await supabase
         .from('conversions')
@@ -73,6 +113,10 @@ export default async function RevenuePage() {
           product_name,
           source,
           country,
+          device,
+          os,
+          browser,
+          first_seen_at,
           received_at,
           post_id,
           posts (
@@ -90,6 +134,17 @@ export default async function RevenuePage() {
 
   const rows = conversions ?? []
 
+  // ── New vs. returning — first occurrence (ascending) of an email in
+  // this fetched set counts as "new". Approximate beyond the 100-row
+  // window, but correct for anything visible on this page. ──
+  const firstSeenEmail = new Set<string>()
+  const isReturning = new Map<string, boolean>()
+  ;[...rows].reverse().forEach(c => {
+    if (!c.customer_email) return
+    isReturning.set(c.id, firstSeenEmail.has(c.customer_email))
+    firstSeenEmail.add(c.customer_email)
+  })
+
   const totalCents = rows.reduce((sum, c) => sum + (c.amount_cents ?? 0), 0)
 
   const byProvider = rows.reduce<Record<string, number>>((acc, c) => {
@@ -98,7 +153,7 @@ export default async function RevenuePage() {
   }, {})
 
   const csvRows = [
-    ['Customer', 'Provider', 'Product', 'Amount', 'Source', 'Country', 'Date'],
+    ['Customer', 'Provider', 'Product', 'Amount', 'Source', 'Country', 'Device', 'OS', 'Browser', 'Date'],
     ...rows.map(c => [
       c.customer_email ?? '',
       c.provider,
@@ -106,6 +161,9 @@ export default async function RevenuePage() {
       formatMoney(c.amount_cents),
       c.source ?? '',
       c.country ?? '',
+      c.device ?? '',
+      c.os ?? '',
+      c.browser ?? '',
       new Date(c.received_at).toLocaleDateString(),
     ]),
   ]
@@ -119,7 +177,7 @@ export default async function RevenuePage() {
         <div className="mb-6">
           <h1 className="text-heading-lg text-ink mb-0.5">Revenue</h1>
           <p className="text-body-sm text-muted">
-            Every payment attributed to the post that drove it.
+            Every payment, where they actually came from, and which post drove it.
           </p>
         </div>
 
@@ -186,149 +244,112 @@ export default async function RevenuePage() {
             <div className="bg-primary-tint rounded-2xl p-4 mb-6 flex items-start gap-3">
               <span className="text-primary text-lg">💡</span>
               <div className="text-body-sm text-primary leading-relaxed">
-                <strong>First-touch attribution.</strong> Revenue is credited to
-                the post the customer first clicked, even if they returned days
-                later to buy.
+                <strong>Every sale, fully attributed.</strong> Device, source and time-to-convert
+                come from the actual visit — and if it came through one of your tracked posts,
+                you'll see exactly which one drove it.
               </div>
             </div>
 
-            <div className="card overflow-hidden">
-              <div className="px-5 py-4 border-b border-line flex items-center justify-between">
-                <h2 className="text-heading-sm text-ink">
-                  All Sales
-                  {rows.length > 0 && (
-                    <span className="text-body-sm text-muted font-normal ml-2">
-                      ({rows.length})
-                    </span>
-                  )}
-                </h2>
+            <div className="flex items-center justify-between mb-3">
+              <h2 className="text-heading-sm text-ink">
+                All Sales
                 {rows.length > 0 && (
-                  <a
-                    href={csvHref}
-                    download="revenue.csv"
-                    className="btn-secondary text-xs py-1.5"
-                  >
-                    ↓ Export CSV
-                  </a>
+                  <span className="text-body-sm text-muted font-normal ml-2">({rows.length})</span>
                 )}
-              </div>
-
-              {rows.length === 0 ? (
-                <div className="p-12 text-center">
-                  <div className="text-4xl mb-3">🎯</div>
-                  <h3 className="text-heading-sm text-ink mb-2">No sales yet</h3>
-                  <p className="text-body-sm text-muted max-w-sm mx-auto">
-                    Sales will appear here once your payment provider fires a
-                    webhook. Make sure your webhook URL is set to{' '}
-                    <code className="bg-surface-muted px-1 rounded font-mono text-xs">
-                      /api/webhook
-                    </code>
-                    .
-                  </p>
-                </div>
-              ) : (
-                <table className="w-full text-sm">
-                  <thead>
-                    <tr className="bg-surface-muted border-b border-line">
-                      {['Customer', 'Source Post', 'Channel', 'Provider', 'Product', 'Amount', 'When'].map(h => (
-                        <th key={h} className="text-left px-4 py-3 text-caption text-muted font-semibold first:pl-5 last:pr-5">
-                          {h}
-                        </th>
-                      ))}
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {rows.map(conv => {
-                      const providerMeta = PROVIDER_META[conv.provider] ?? { name: conv.provider, icon: '◈' }
-                      const post = Array.isArray(conv.posts) ? conv.posts[0] : conv.posts
-
-                      // FIX: prioritize the real, actual source (conv.source —
-                      // comes from the referrer at click time, via webhook
-                      // custom_data) over the post's *declared/planned* channel.
-                      // Before, this always showed post.channel because a post
-                      // almost always exists, so the real source never won,
-                      // even when it disagreed with reality (the bug you found).
-                      const channelMeta = conv.source
-                        ? CHANNEL_META[conv.source] ?? { name: conv.source, color: '#5B5B5B', bgColor: '#F7F6F4', icon: '●' }
-                        : post?.channel
-                          ? CHANNEL_META[post.channel]
-                          : null
-
-                      const postPreview = post?.content
-                        ? post.content.slice(0, 60) + (post.content.length > 60 ? '...' : '')
-                        : null
-
-                      return (
-                        <tr key={conv.id} className="border-b border-line hover:bg-surface-muted transition-colors last:border-0">
-
-                          <td className="pl-5 pr-4 py-3.5">
-                            <div className="flex items-center gap-2">
-                              <div className="w-7 h-7 rounded-full bg-surface-muted flex items-center justify-center text-[11px] font-bold text-body flex-shrink-0">
-                                {(conv.customer_email ?? '?').charAt(0).toUpperCase()}
-                              </div>
-                              <div>
-                                <div className="text-body-sm font-medium text-ink">
-                                  {conv.customer_email ?? 'Unknown'}
-                                </div>
-                                <div className="text-caption text-muted normal-case font-normal">
-                                  {conv.country ?? '—'}
-                                </div>
-                              </div>
-                            </div>
-                          </td>
-
-                          <td className="px-4 py-3.5 max-w-[180px]">
-                            {postPreview ? (
-                              <p className="text-[12px] text-success font-medium truncate" title={post?.content}>
-                                {postPreview}
-                              </p>
-                            ) : (
-                              <span className="text-caption text-muted normal-case font-normal">
-                                {conv.source ?? 'Direct'}
-                              </span>
-                            )}
-                          </td>
-
-                          {/* Channel — now shows the real, actual source */}
-                          <td className="px-4 py-3.5">
-                            {channelMeta ? (
-                              <span
-                                className="inline-flex items-center gap-1 px-2 py-1 rounded-lg text-[11px] font-semibold"
-                                style={{ backgroundColor: channelMeta.bgColor, color: channelMeta.color }}
-                              >
-                                {channelMeta.icon} {channelMeta.name}
-                              </span>
-                            ) : (
-                              <span className="text-caption text-muted normal-case font-normal">—</span>
-                            )}
-                          </td>
-
-                          <td className="px-4 py-3.5">
-                            <span className="text-body-sm text-body">
-                              {providerMeta.icon} {providerMeta.name}
-                            </span>
-                          </td>
-
-                          <td className="px-4 py-3.5 text-body-sm text-body">
-                            {conv.product_name ?? '—'}
-                          </td>
-
-                          <td className="px-4 py-3.5">
-                            <span className="text-body-sm font-bold text-success tabular">
-                              +{formatMoney(conv.amount_cents)}
-                            </span>
-                          </td>
-
-                          <td className="px-4 pr-5 py-3.5 text-caption text-muted normal-case font-normal">
-                            {timeAgo(conv.received_at)}
-                          </td>
-                        </tr>
-                      )
-                    })}
-                  </tbody>
-                </table>
+              </h2>
+              {rows.length > 0 && (
+                <a href={csvHref} download="revenue.csv" className="btn-secondary text-xs py-1.5">
+                  ↓ Export CSV
+                </a>
               )}
             </div>
+
+            {rows.length === 0 ? (
+              <div className="card p-12 text-center">
+                <div className="text-4xl mb-3">🎯</div>
+                <h3 className="text-heading-sm text-ink mb-2">No sales yet</h3>
+                <p className="text-body-sm text-muted max-w-sm mx-auto">
+                  Sales will appear here once your payment provider fires a
+                  webhook. Make sure your webhook URL is set to{' '}
+                  <code className="bg-surface-muted px-1 rounded font-mono text-xs">/api/webhook</code>.
+                </p>
+              </div>
+            ) : (
+              <div className="space-y-3">
+                {rows.map(conv => {
+                  const providerMeta = PROVIDER_META[conv.provider] ?? { name: conv.provider, icon: '◈' }
+                  const post = Array.isArray(conv.posts) ? conv.posts[0] : conv.posts
+                  const src = sourceMeta(conv.source)
+                  const returning = isReturning.get(conv.id) ?? false
+                  const convertTime = timeToConvert(conv.first_seen_at, conv.received_at)
+
+                  return (
+                    <div key={conv.id} className="card p-4 flex flex-wrap items-center gap-4">
+
+                      {/* Customer + device row */}
+                      <div className="flex items-center gap-3 min-w-[220px] flex-1">
+                        <div className="w-10 h-10 rounded-full bg-surface-muted flex items-center justify-center text-sm font-bold text-body flex-shrink-0">
+                          {(conv.customer_email ?? '?').charAt(0).toUpperCase()}
+                        </div>
+                        <div className="min-w-0">
+                          <div className="flex items-center gap-2 flex-wrap">
+                            <span className="text-body-sm font-semibold text-ink truncate">
+                              {maskEmail(conv.customer_email)}
+                            </span>
+                            <span className={returning ? 'badge-success' : 'badge-primary-tint'}>
+                              {returning ? 'Returning' : 'New'}
+                            </span>
+                          </div>
+                          <div className="flex items-center gap-2 text-caption text-muted normal-case font-normal mt-0.5 flex-wrap">
+                            {conv.country && <span>{countryFlag(conv.country)} {conv.country}</span>}
+                            {conv.device && <span>{DEVICE_ICON[conv.device] ?? '●'} {conv.device}</span>}
+                            {conv.os && <span title={OS_LABEL[conv.os] ?? conv.os}>{OS_ICON[conv.os] ?? ''} {OS_LABEL[conv.os] ?? conv.os}</span>}
+                            {conv.browser && <span>{BROWSER_ICON[conv.browser] ?? '○'} {BROWSER_LABEL[conv.browser] ?? conv.browser}</span>}
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Source + post — this row is SourceTruth's own
+                          differentiator on top of the DataFast-style fields */}
+                      <div className="min-w-[160px]">
+                        <span
+                          className="inline-flex items-center gap-1 px-2 py-1 rounded-lg text-[11px] font-semibold"
+                          style={{ backgroundColor: src.bgColor, color: src.color }}
+                        >
+                          {src.icon} {src.name}
+                        </span>
+                        {post?.content && (
+                          <p className="text-[11px] text-success font-medium truncate max-w-[180px] mt-1" title={post.content}>
+                            {post.content.slice(0, 40)}{post.content.length > 40 ? '…' : ''}
+                          </p>
+                        )}
+                      </div>
+
+                      {/* Provider + product */}
+                      <div className="min-w-[140px] text-body-sm text-body">
+                        <div>{providerMeta.icon} {providerMeta.name}</div>
+                        <div className="text-caption text-muted normal-case font-normal mt-0.5">{conv.product_name ?? '—'}</div>
+                      </div>
+
+                      {/* Amount */}
+                      <div className="text-body-sm font-bold text-success tabular min-w-[70px]">
+                        +{formatMoney(conv.amount_cents)}
+                      </div>
+
+                      {/* Time to convert */}
+                      <div className="text-body-sm text-body min-w-[80px]">
+                        {convertTime ?? <span className="text-muted">—</span>}
+                      </div>
+
+                      {/* When */}
+                      <div className="text-caption text-muted normal-case font-normal min-w-[80px] text-right ml-auto">
+                        {timeAgo(conv.received_at)}
+                      </div>
+                    </div>
+                  )
+                })}
+              </div>
+            )}
           </>
         )}
       </div>

@@ -1,27 +1,18 @@
 (function() {
-  const STORAGE_KEY = 'st_ref'
+  const STORAGE_KEY = 'st_ref'      // post-level attribution — SourceTruth's own feature, unchanged behavior
+  const TOUCH_KEY = 'st_touch'      // NEW — general first-touch record, for every visitor, DataFast-style
   const SESSION_KEY = 'st_session_id'
   const THIRTY_DAYS = 30 * 24 * 60 * 60 * 1000
   const ORIGIN = 'https://sourcetruth-v.vercel.app'
   const SITE_KEY = document.currentScript?.getAttribute('data-site') || window.ST_SITE_KEY
 
   // ── Session ID ──────────────────────────────────────────────
-  // sessionStorage clears when tab closes → new session on next visit
   let sessionId = sessionStorage.getItem(SESSION_KEY)
   if (!sessionId) {
     sessionId = Math.random().toString(36).substring(2) + Date.now().toString(36)
     sessionStorage.setItem(SESSION_KEY, sessionId)
   }
 
-  // ── UTM / tracked link ──────────────────────────────────────
-  const params = new URLSearchParams(window.location.search)
-  const ref = params.get('st')
-
-  // Real ground-truth source, parsed from the referring page's hostname
-  // at the exact moment they land via the tracked link. This is captured
-  // NOW because by the time they reach checkout, document.referrer will
-  // just be whatever page on your own site they were last on — not the
-  // social platform they actually came from.
   function parseReferrerSource(referrer) {
     if (!referrer) return 'direct' // also hit by in-app browsers that strip referrer entirely
     try {
@@ -32,11 +23,54 @@
       if (/instagram\.com/.test(host)) return 'instagram'
       if (/threads\.net/.test(host)) return 'threads'
       if (/bsky\.app/.test(host)) return 'bluesky'
-      return host
+      return host // e.g. "marclou.com" — a real backlink, not a recognized platform
     } catch (e) {
       return 'direct'
     }
   }
+
+  // Client-side UA parse — mirrors /api/click's server-side parseUA so
+  // device/os/browser are known for EVERY visitor, not just ones who
+  // hit that endpoint (i.e. arrived via a tracked ?st= link).
+  function parseUA(ua) {
+    const device = /Mobile|Android|iPhone/i.test(ua) ? 'mobile' : /iPad|Tablet/i.test(ua) ? 'tablet' : 'desktop'
+    const browser = /Chrome/i.test(ua) ? 'chrome' : /Safari/i.test(ua) ? 'safari' : /Firefox/i.test(ua) ? 'firefox' : 'other'
+    const os = /iPhone|iPad|iOS/i.test(ua) ? 'ios' : /Android/i.test(ua) ? 'android' : /Windows/i.test(ua) ? 'windows' : /Mac/i.test(ua) ? 'mac' : 'other'
+    return { device, browser, os }
+  }
+
+  // ── NEW: general first-touch record, DataFast-style ─────────
+  // Set ONCE per visitor (never overwritten), so first_seen_at gives a
+  // real "time to convert" and source/device/os/browser reflect how
+  // they ACTUALLY first found the site. This exists for EVERY visitor,
+  // not just ones who clicked a tracked link — that's the difference
+  // from STORAGE_KEY below, which is SourceTruth's own post-attribution
+  // feature and keeps its existing (last-tracked-link) behavior.
+  function getTouch() {
+    const raw = localStorage.getItem(TOUCH_KEY)
+    if (!raw) return null
+    try { return JSON.parse(raw) } catch (e) { return null }
+  }
+
+  let touch = getTouch()
+  if (!touch) {
+    const { device, browser, os } = parseUA(navigator.userAgent)
+    touch = {
+      source: parseReferrerSource(document.referrer),
+      device: device,
+      browser: browser,
+      os: os,
+      first_seen_at: Date.now(),
+    }
+    localStorage.setItem(TOUCH_KEY, JSON.stringify(touch))
+  }
+
+  // ── UTM / tracked link — post-level attribution, SourceTruth's own
+  // feature. Unchanged: overwrites on every new ?st= link clicked
+  // (last-touch for POST credit specifically, separate from the
+  // first-touch general record above). ──
+  const params = new URLSearchParams(window.location.search)
+  const ref = params.get('st')
 
   if (ref) {
     const source = parseReferrerSource(document.referrer)
@@ -64,7 +98,6 @@
   }).catch(() => {})
 
   // ── Session duration ────────────────────────────────────────
-  // sendBeacon works even when page is closing
   window.addEventListener('visibilitychange', function() {
     if (document.visibilityState === 'hidden') {
       const duration = Math.round((Date.now() - startTime) / 1000)
@@ -119,16 +152,13 @@
     if (emailInput && emailInput.value) window.SourceTruth.identify(emailInput.value)
   })
 
-  // ── NEW: attach attribution to Lemon Squeezy checkout links ──
-  // This is the actual missing link. Without this, nothing ever tells
-  // Lemon Squeezy which slug a purchase came from — visitors/identify
-  // never sees LS checkout emails (that form lives on LS's own domain/
-  // iframe), so this was the only way attribution could have worked.
-  //
-  // Lemon.js (the overlay embed) reads the href on the <a> at click time,
-  // and passes any checkout[custom][...] query params straight through
-  // to `meta.custom_data` in the webhook payload. So we just need to make
-  // sure the slug is sitting in the href before the click happens.
+  // ── Attach attribution to Lemon Squeezy checkout links ───────
+  // CHANGED: this used to `return` immediately if there was no tracked-
+  // link slug, meaning organic/direct visitors got ZERO attribution data
+  // on their purchase. That's the actual gap vs. DataFast — they
+  // attribute every visitor, not just ones who clicked a special link.
+  // Now: st_ref/st_source (post-level) only attach when a slug exists,
+  // but device/os/browser/first_seen ALWAYS attach, for every visitor.
   const LS_LINK_PATTERN = /lemonsqueezy\.com\/(checkout|buy)/i
 
   function isLemonSqueezyLink(href) {
@@ -137,25 +167,30 @@
 
   function attachRefToCheckoutLinks() {
     const slug = getStoredSlug()
-    if (!slug) return
-    const source = getStoredSource()
+    // post-click source wins if this visit came through a tracked link;
+    // otherwise fall back to the general first-touch source
+    const source = getStoredSource() || touch.source
+    const t = getTouch() || touch
+    const patchTag = slug || 'general'
 
     document.querySelectorAll('a[href]').forEach(function(a) {
       const href = a.getAttribute('href')
       if (!href || !isLemonSqueezyLink(href)) return
-      // already patched, don't re-append on repeat DOM scans
-      if (a.dataset.stPatched === slug) return
+      if (a.dataset.stPatched === patchTag) return
 
       try {
         const url = new URL(href, window.location.href)
-        url.searchParams.set('checkout[custom][st_ref]', slug)
+        if (slug) url.searchParams.set('checkout[custom][st_ref]', slug)
         if (SITE_KEY) url.searchParams.set('checkout[custom][st_site]', SITE_KEY)
-        // real ground-truth source (from referrer at click time), NOT
-        // the post's configured channel — this is the actual fix for
-        // "source shows LinkedIn even though the sale came from Twitter"
         if (source) url.searchParams.set('checkout[custom][st_source]', source)
+        if (t) {
+          url.searchParams.set('checkout[custom][st_device]', t.device)
+          url.searchParams.set('checkout[custom][st_os]', t.os)
+          url.searchParams.set('checkout[custom][st_browser]', t.browser)
+          url.searchParams.set('checkout[custom][st_first_seen]', String(t.first_seen_at))
+        }
         a.setAttribute('href', url.toString())
-        a.dataset.stPatched = slug
+        a.dataset.stPatched = patchTag
       } catch (e) {
         // malformed href, skip it
       }
@@ -164,8 +199,6 @@
 
   attachRefToCheckoutLinks()
 
-  // Lemon.js buttons are sometimes rendered after this script runs
-  // (client-side frameworks, lazy widgets) — catch late arrivals.
   const observer = new MutationObserver(attachRefToCheckoutLinks)
   observer.observe(document.body || document.documentElement, { childList: true, subtree: true })
 })()
