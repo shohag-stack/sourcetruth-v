@@ -138,8 +138,7 @@ export default async function RevenuePage() {
   // this fetched set counts as "new". Approximate beyond the 100-row
   // window, but correct for anything visible on this page. ──
   const firstSeenEmail = new Set<string>()
-  const isReturning = new Map<string, boolean>()
-  ;[...rows].reverse().forEach(c => {
+  const isReturning = new Map<string, boolean>();[...rows].reverse().forEach(c => {
     if (!c.customer_email) return
     isReturning.set(c.id, firstSeenEmail.has(c.customer_email))
     firstSeenEmail.add(c.customer_email)

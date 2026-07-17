@@ -122,7 +122,7 @@ export async function POST(req: NextRequest) {
         visited_at: new Date().toISOString(),
       })
 
-    return withCors(NextResponse.json({ ok: true, new_visitor: isNewVisitor }))
+    return withCors(NextResponse.json({ ok: true, new_visitor: isNewVisitor, country, city }))
 
   } catch (err) {
     console.error('[pageview] error:', err)

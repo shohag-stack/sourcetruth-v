@@ -56,6 +56,8 @@ export async function POST(request: Request) {
   const stBrowser: string | undefined = customData.st_browser;
   const stFirstSeenMs: string | undefined = customData.st_first_seen;
   const firstSeenAt = stFirstSeenMs ? new Date(Number(stFirstSeenMs)).toISOString() : null;
+  const country: string | undefined = customData.st_country;
+  const city: string | undefined = customData.st_city;
 
   let post: { id: string; channel: string | null; slug: string } | null = null;
 
@@ -118,6 +120,9 @@ export async function POST(request: Request) {
     browser: stBrowser ?? null,
     first_seen_at: firstSeenAt,
     raw_payload: payload,
+    country,
+    city,
+
   });
 
   // unique(provider, order_id) means a duplicate delivery throws here — that's expected, not a bug
