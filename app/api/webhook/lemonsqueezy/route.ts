@@ -118,9 +118,7 @@ export async function POST(request: Request) {
 
     // Attribution
     source: stClickSource ?? post?.channel ?? visitor?.last_source ?? null,
-    first_source:
-      stFirstSource ?? visitor?.first_source ?? post?.channel ?? null,
-
+    first_source: stFirstSource ?? visitor?.first_source ?? post?.channel ?? null,
     first_post_id: visitor?.first_post_id ?? postId,
     attribution_model: stRef ? "click_ref" : "last_touch",
 
@@ -129,7 +127,6 @@ export async function POST(request: Request) {
     os: stOs ?? null,
     browser: stBrowser ?? null,
     first_seen_at: firstSeenAt,
-
     country,
     city,
   });

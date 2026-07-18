@@ -115,6 +115,7 @@ export default async function RevenuePage() {
           source,
           country,
           device,
+          first_source,
           os,
           browser,
           first_seen_at,
@@ -279,7 +280,7 @@ export default async function RevenuePage() {
                 {rows.map(conv => {
                   const providerMeta = PROVIDER_META[conv.provider] ?? { name: conv.provider, icon: '◈' }
                   const post = Array.isArray(conv.posts) ? conv.posts[0] : conv.posts
-                  const src = sourceMeta(conv.source)
+                  const src = sourceMeta(conv.first_source)
                   const returning = isReturning.get(conv.id) ?? false
                   const convertTime = timeToConvert(conv.first_seen_at, conv.received_at)
 
