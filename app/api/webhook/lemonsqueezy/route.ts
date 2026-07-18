@@ -47,7 +47,8 @@ export async function POST(request: Request) {
   // this is what fixes "source shows LinkedIn even though the sale came
   // from Twitter." post.channel is now only a fallback for old links
   // created before this field existed.
-  const stSource: string | undefined = customData.st_source;
+  const stFirstSource: string | undefined = customData.st_first_source;
+  const stClickSource: string | undefined = customData.st_click_source;
   // NEW — DataFast-style fields, present for every sale now (not just
   // ones with a tracked-link ref), since track.js attaches these
   // unconditionally as of the general first-touch patch.
@@ -55,7 +56,9 @@ export async function POST(request: Request) {
   const stOs: string | undefined = customData.st_os;
   const stBrowser: string | undefined = customData.st_browser;
   const stFirstSeenMs: string | undefined = customData.st_first_seen;
-  const firstSeenAt = stFirstSeenMs ? new Date(Number(stFirstSeenMs)).toISOString() : null;
+  const firstSeenAt = stFirstSeenMs
+    ? new Date(Number(stFirstSeenMs)).toISOString()
+    : null;
   const country: string | undefined = customData.st_country;
   const city: string | undefined = customData.st_city;
 
@@ -105,24 +108,30 @@ export async function POST(request: Request) {
     user_id: conn.user_id,
     site_id: conn.site_id,
     post_id: postId,
+
     provider: "lemon_squeezy",
     order_id: orderId,
     customer_email: email,
     amount_cents: amountCents,
     currency: attrs.currency ?? "USD",
     product_name: attrs.first_order_item?.product_name ?? null,
-    source: stSource ?? post?.channel ?? visitor?.last_source ?? null,
-    first_source: stSource ?? visitor?.first_source ?? (post ? post.channel : null),
+
+    // Attribution
+    source: stClickSource ?? post?.channel ?? visitor?.last_source ?? null,
+    first_source:
+      stFirstSource ?? visitor?.first_source ?? post?.channel ?? null,
+
     first_post_id: visitor?.first_post_id ?? postId,
     attribution_model: stRef ? "click_ref" : "last_touch",
+
+    // Visitor metadata
     device: stDevice ?? null,
     os: stOs ?? null,
     browser: stBrowser ?? null,
     first_seen_at: firstSeenAt,
-    raw_payload: payload,
+
     country,
     city,
-
   });
 
   // unique(provider, order_id) means a duplicate delivery throws here — that's expected, not a bug

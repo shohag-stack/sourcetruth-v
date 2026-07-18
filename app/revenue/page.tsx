@@ -24,6 +24,7 @@ function timeAgo(dateStr: string): string {
 // Only computable when first_seen_at made it through custom_data (every
 // sale going forward should have this; older sales before the track.js
 // patch won't).
+
 function timeToConvert(firstSeenAt: string | null, receivedAt: string): string | null {
   if (!firstSeenAt) return null
   const ms = new Date(receivedAt).getTime() - new Date(firstSeenAt).getTime()

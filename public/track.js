@@ -216,7 +216,12 @@
     const slug = getStoredSlug();
     // post-click source wins if this visit came through a tracked link;
     // otherwise fall back to the general first-touch source
-    const source = getStoredSource() || touch.source;
+
+
+    const clickSource = getStoredSource(); // Source of the tracked link
+    const firstSource = touch.source;      // Visitor's first-touch source
+
+
     const t = getTouch() || touch;
     const patchTag = slug || "general";
 
@@ -230,7 +235,22 @@
         if (slug) url.searchParams.set("checkout[custom][st_ref]", slug);
         if (SITE_KEY)
           url.searchParams.set("checkout[custom][st_site]", SITE_KEY);
-        if (source) url.searchParams.set("checkout[custom][st_source]", source);
+        
+        if (clickSource) {
+          url.searchParams.set(
+            "checkout[custom][st_click_source]",
+            clickSource
+          );
+        }
+
+        if (firstSource) {
+          url.searchParams.set(
+            "checkout[custom][st_first_source]",
+            firstSource
+          );
+        }
+
+
         if (t) {
           url.searchParams.set("checkout[custom][st_device]", t.device);
           url.searchParams.set("checkout[custom][st_os]", t.os);
@@ -248,7 +268,7 @@
         if (t.city) {
           url.searchParams.set('checkout[custom][st_city]', t.city)
         }
-        
+
         a.setAttribute("href", url.toString());
         a.dataset.stPatched = patchTag;
       } catch (e) {
