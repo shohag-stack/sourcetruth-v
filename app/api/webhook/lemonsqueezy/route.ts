@@ -43,24 +43,28 @@ export async function POST(request: Request) {
   // on the visitors table or the email ever being identify()'d.
   const customData = payload.meta?.custom_data ?? {};
   const stRef: string | undefined = customData.st_ref;
-  // real ground-truth source, from document.referrer at click time —
-  // this is what fixes "source shows LinkedIn even though the sale came
-  // from Twitter." post.channel is now only a fallback for old links
-  // created before this field existed.
-  const stFirstSource: string | undefined = customData.st_first_source;
+  // Your track.js now sends two separate sources instead of one:
+  //   st_click_source  — source of THIS specific tracked-link click
+  //   st_first_source  — the visitor's overall first-touch source
+  // clickSource wins when present (matches "credit the post that drove
+  // THIS sale"); firstSource is the fallback for the general-attribution
+  // (non-post) case.
   const stClickSource: string | undefined = customData.st_click_source;
-  // NEW — DataFast-style fields, present for every sale now (not just
-  // ones with a tracked-link ref), since track.js attaches these
-  // unconditionally as of the general first-touch patch.
+  const stFirstSource: string | undefined = customData.st_first_source;
+  const stSource = stClickSource ?? stFirstSource;
+  // DataFast-style fields, present for every sale now (not just ones
+  // with a tracked-link ref).
   const stDevice: string | undefined = customData.st_device;
   const stOs: string | undefined = customData.st_os;
   const stBrowser: string | undefined = customData.st_browser;
   const stFirstSeenMs: string | undefined = customData.st_first_seen;
-  const firstSeenAt = stFirstSeenMs
-    ? new Date(Number(stFirstSeenMs)).toISOString()
-    : null;
-  const country: string | undefined = customData.st_country;
-  const city: string | undefined = customData.st_city;
+  const firstSeenAt = stFirstSeenMs ? new Date(Number(stFirstSeenMs)).toISOString() : null;
+  // NEW — real visited-country/city from your own geo lookup (via
+  // /api/pageview), more reliable than whatever LS's own payload has
+  // (that's typically billing address, not where they actually browsed
+  // from). Falls back to LS's attrs.user_country below if absent.
+  const stCountry: string | undefined = customData.st_country;
+  const stCity: string | undefined = customData.st_city;
 
   let post: { id: string; channel: string | null; slug: string } | null = null;
 
@@ -108,27 +112,22 @@ export async function POST(request: Request) {
     user_id: conn.user_id,
     site_id: conn.site_id,
     post_id: postId,
-
     provider: "lemon_squeezy",
     order_id: orderId,
     customer_email: email,
     amount_cents: amountCents,
     currency: attrs.currency ?? "USD",
     product_name: attrs.first_order_item?.product_name ?? null,
-
-    // Attribution
-    source: stClickSource ?? post?.channel ?? visitor?.last_source ?? null,
-    first_source: stFirstSource ?? visitor?.first_source ?? post?.channel ?? null,
+    source: stSource ?? post?.channel ?? visitor?.last_source ?? null,
+    first_source: stSource ?? visitor?.first_source ?? (post ? post.channel : null),
     first_post_id: visitor?.first_post_id ?? postId,
     attribution_model: stRef ? "click_ref" : "last_touch",
-
-    // Visitor metadata
     device: stDevice ?? null,
     os: stOs ?? null,
     browser: stBrowser ?? null,
     first_seen_at: firstSeenAt,
-    country,
-    city,
+    country: stCountry ?? attrs.user_country ?? null,
+    raw_payload: payload,
   });
 
   // unique(provider, order_id) means a duplicate delivery throws here — that's expected, not a bug

@@ -1,22 +1,27 @@
 // app/analytics/traffic/page.tsx
-import { AppShell } from '@/components/layout/AppShell'
-import { countryFlag } from '@/lib/countryFlag'
-import { createClient } from '@/utils/supabase/server'
-import Link from 'next/link'
-import { redirect } from 'next/navigation'
+import { AppShell } from "@/components/layout/AppShell";
+import {
+  VisitorRevenueChart,
+  VisitorRevenueDay,
+} from "@/components/charts/VisitorRevenueChart";
+import { createClient } from "@/utils/supabase/server";
+import Link from "next/link";
+import { redirect } from "next/navigation";
+import { DateRangePicker } from "@/components/ui/DateRangePicker";
+import { getSince } from "@/lib/getSince";
 
 // ─── Helpers ──────────────────────────────────────────────────
 function formatDuration(seconds: number): string {
-  if (!seconds || seconds < 1) return '—'
-  if (seconds < 60) return `${Math.round(seconds)}s`
-  const m = Math.floor(seconds / 60)
-  const s = Math.round(seconds % 60)
-  return `${m}m ${s}s`
+  if (!seconds || seconds < 1) return "—";
+  if (seconds < 60) return `${Math.round(seconds)}s`;
+  const m = Math.floor(seconds / 60);
+  const s = Math.round(seconds % 60);
+  return `${m}m ${s}s`;
 }
 
 function formatNumber(n: number): string {
-  if (n >= 1000) return `${(n / 1000).toFixed(1)}k`
-  return n.toString()
+  if (n >= 1000) return `${(n / 1000).toFixed(1)}k`;
+  return n.toString();
 }
 
 // ─── Ranked list component ────────────────────────────────────
@@ -24,10 +29,10 @@ function RankedList({
   title,
   rows,
 }: {
-  title: string
-  rows: { label: string; value: number; flag?: string }[]
+  title: string;
+  rows: { label: string; value: number; flag?: string }[];
 }) {
-  const max = rows[0]?.value ?? 1
+  const max = rows[0]?.value ?? 1;
   return (
     <div className="card p-5">
       <h2 className="text-heading-sm text-ink mb-4">{title}</h2>
@@ -36,7 +41,7 @@ function RankedList({
       ) : (
         <div className="space-y-1">
           {rows.map((row, i) => {
-            const pct = Math.round((row.value / max) * 100)
+            const pct = Math.round((row.value / max) * 100);
             return (
               <div
                 key={`${row.label}-${i}`}
@@ -56,29 +61,51 @@ function RankedList({
                   {pct}%
                 </span>
               </div>
-            )
+            );
           })}
         </div>
       )}
     </div>
-  )
+  );
 }
 
+// ─── Country flag emoji ───────────────────────────────────────
+function countryFlag(code: string): string {
+  if (!code || code === "unknown") return "🌍";
+  const flag = code
+    .toUpperCase()
+    .split("")
+    .map((c) => String.fromCodePoint(0x1f1e6 + c.charCodeAt(0) - 65))
+    .join("");
+  return flag;
+}
+
+type Range = "24h" | "7d" | "30d" | "90d" | "1y" | "all";
+
 // ─── Page ─────────────────────────────────────────────────────
-export default async function TrafficAnalyticsPage() {
-  const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user) redirect('/auth/login')
+export default async function TrafficAnalyticsPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ range?: Range }>;
+}) {
+  const params = await searchParams;
+  const range: Range = params.range ?? "24h";
+
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) redirect("/auth/login");
 
   // Get first site for this user
   // TODO: add site switcher when multiple sites UI is ready
   const { data: site } = await supabase
-    .from('sites')
-    .select('id, name, domain')
-    .eq('user_id', user.id)
-    .order('created_at', { ascending: true })
+    .from("sites")
+    .select("id, name, domain")
+    .eq("user_id", user.id)
+    .order("created_at", { ascending: true })
     .limit(1)
-    .maybeSingle()
+    .maybeSingle();
 
   // No site yet
   if (!site) {
@@ -87,182 +114,298 @@ export default async function TrafficAnalyticsPage() {
         <div className="p-8 flex items-center justify-center min-h-[60vh]">
           <div className="text-center">
             <div className="text-4xl mb-3">📊</div>
-            <h2 className="text-heading-sm text-ink mb-2">No site connected yet</h2>
-            <p className="text-body-sm text-muted mb-4">Add a site in Settings to start tracking visitors.</p>
-            <Link href="/settings" className="btn-primary">Go to Settings →</Link>
+            <h2 className="text-heading-sm text-ink mb-2">
+              No site connected yet
+            </h2>
+            <p className="text-body-sm text-muted mb-4">
+              Add a site in Settings to start tracking visitors.
+            </p>
+            <Link href="/settings" className="btn-primary">
+              Go to Settings →
+            </Link>
           </div>
         </div>
       </AppShell>
-    )
+    );
   }
 
   // ── Fetch all pageviews for this site ─────────────────────
-  // Last 30 days
-  const since = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString()
+  const since = getSince(range);
 
-  const { data: pageviews } = await supabase
-    .from('pageviews')
-    .select('session_id, path, country, device, browser, os, is_bounce, is_new_visitor, duration_seconds, visited_at')
-    .eq('site_id', site.id)
-    .gte('visited_at', since)
-    .order('visited_at', { ascending: false })
+  let pageviewsQuery = supabase
+    .from("pageviews")
+    .select(
+      "session_id, path, country, device, browser, os, is_bounce, is_new_visitor, duration_seconds, visited_at",
+    )
+    .eq("site_id", site.id);
 
-  const rows = pageviews ?? []
+  let conversionsQuery = supabase
+    .from("conversions")
+    .select("amount_cents, customer_email, received_at")
+    .eq("site_id", site.id)
+    .eq("refunded", false);
+
+  if (since) {
+    pageviewsQuery = pageviewsQuery.gte("visited_at", since.toISOString());
+    conversionsQuery = conversionsQuery.gte(
+      "received_at",
+      since.toISOString(),
+    );
+  }
+
+  const [{ data: pageviews }, { data: conversions }] = await Promise.all([
+    pageviewsQuery.order("visited_at", { ascending: false }),
+    conversionsQuery.order("received_at", { ascending: true }),
+  ]);
+
+  const rows = pageviews ?? [];
+  const conversionRows = conversions ?? [];
 
   // ── Aggregate stats ───────────────────────────────────────
-  const totalPageviews = rows.length
+  const totalPageviews = rows.length;
 
   // Unique visitors = distinct session_ids
-  const uniqueSessions = new Set(rows.map(r => r.session_id))
-  const totalVisitors = uniqueSessions.size
-
-  // Bounce rate = sessions where is_bounce is still true
-  const bouncedSessions = new Set(
-    rows.filter(r => r.is_bounce).map(r => r.session_id)
-  )
-  const bounceRate = totalVisitors > 0
-    ? Math.round((bouncedSessions.size / totalVisitors) * 100)
-    : 0
+  const uniqueSessions = new Set(rows.map((r) => r.session_id));
+  const totalVisitors = uniqueSessions.size;
 
   // Avg session duration — only sessions with duration data
-  const durationsPerSession = new Map<string, number[]>()
-  rows.forEach(r => {
+  const durationsPerSession = new Map<string, number[]>();
+  rows.forEach((r) => {
     if (r.duration_seconds && r.duration_seconds > 0) {
-      const existing = durationsPerSession.get(r.session_id) ?? []
-      existing.push(r.duration_seconds)
-      durationsPerSession.set(r.session_id, existing)
+      const existing = durationsPerSession.get(r.session_id) ?? [];
+      existing.push(r.duration_seconds);
+      durationsPerSession.set(r.session_id, existing);
     }
-  })
-  const allDurations = Array.from(durationsPerSession.values()).map(
-    arr => arr.reduce((a, b) => a + b, 0)
-  )
-  const avgDuration = allDurations.length > 0
-    ? allDurations.reduce((a, b) => a + b, 0) / allDurations.length
-    : 0
+  });
+  const allDurations = Array.from(durationsPerSession.values()).map((arr) =>
+    arr.reduce((a, b) => a + b, 0),
+  );
+  const avgDuration =
+    allDurations.length > 0
+      ? allDurations.reduce((a, b) => a + b, 0) / allDurations.length
+      : 0;
+
+  // ── Bounce rate — FIXED. The raw `is_bounce` column on each pageview
+  // row means "this session viewed only one page," which is technically
+  // correct but conceptually wrong: a visitor who spends 6+ minutes on
+  // a single page (common on single-page sites) isn't a bad bounce,
+  // they're engaged. That's exactly what was happening — "1.0
+  // pages/visit" + "6m 25s avg session" + "100% bounce rate" all at
+  // once, which is contradictory if bounce is meant to signal disengaged
+  // visitors.
+  //
+  // Real bounce = single pageview AND left quickly. Recomputed here
+  // using page-count + duration (already fetched for the stat cards
+  // above) instead of trusting the page-count-only is_bounce column.
+  const BOUNCE_DURATION_THRESHOLD_SECONDS = 10;
+  const pageCountBySession = new Map<string, number>();
+  rows.forEach((r) => {
+    pageCountBySession.set(r.session_id, (pageCountBySession.get(r.session_id) ?? 0) + 1);
+  });
+  let realBouncedCount = 0;
+  uniqueSessions.forEach((sessionId) => {
+    const pageCount = pageCountBySession.get(sessionId) ?? 0;
+    const totalDuration = (durationsPerSession.get(sessionId) ?? []).reduce((a, b) => a + b, 0);
+    if (pageCount <= 1 && totalDuration < BOUNCE_DURATION_THRESHOLD_SECONDS) {
+      realBouncedCount += 1;
+    }
+  });
+  const bounceRate =
+    totalVisitors > 0 ? Math.round((realBouncedCount / totalVisitors) * 100) : 0;
 
   // New visitors this period
-  const newVisitors = rows.filter(r => r.is_new_visitor).length
+  const newVisitors = rows.filter((r) => r.is_new_visitor).length;
 
   // ── Top pages ─────────────────────────────────────────────
-  const pageCounts = new Map<string, number>()
-  rows.forEach(r => {
-    const path = r.path ?? '/'
-    pageCounts.set(path, (pageCounts.get(path) ?? 0) + 1)
-  })
+  const pageCounts = new Map<string, number>();
+  rows.forEach((r) => {
+    const path = r.path ?? "/";
+    pageCounts.set(path, (pageCounts.get(path) ?? 0) + 1);
+  });
   const topPages = Array.from(pageCounts.entries())
     .sort((a, b) => b[1] - a[1])
     .slice(0, 8)
-    .map(([label, value]) => ({ label, value }))
+    .map(([label, value]) => ({ label, value }));
 
   // ── Top countries ─────────────────────────────────────────
-  const countryCounts = new Map<string, number>()
-  rows.forEach(r => {
-    const c = r.country ?? 'unknown'
-    countryCounts.set(c, (countryCounts.get(c) ?? 0) + 1)
-  })
+  const countryCounts = new Map<string, number>();
+  rows.forEach((r) => {
+    const c = r.country ?? "unknown";
+    countryCounts.set(c, (countryCounts.get(c) ?? 0) + 1);
+  });
   const topCountries = Array.from(countryCounts.entries())
     .sort((a, b) => b[1] - a[1])
     .slice(0, 8)
     .map(([code, value]) => ({
-      label: code === 'unknown' ? 'Unknown' : code,
+      label: code === "unknown" ? "Unknown" : code,
       value,
       flag: countryFlag(code),
-    }))
+    }));
 
   // ── Top devices ───────────────────────────────────────────
-  const deviceCounts = new Map<string, number>()
-  rows.forEach(r => {
-    const d = r.device ?? 'unknown'
-    deviceCounts.set(d, (deviceCounts.get(d) ?? 0) + 1)
-  })
+  const deviceCounts = new Map<string, number>();
+  rows.forEach((r) => {
+    const d = r.device ?? "unknown";
+    deviceCounts.set(d, (deviceCounts.get(d) ?? 0) + 1);
+  });
   const topDevices = Array.from(deviceCounts.entries())
     .sort((a, b) => b[1] - a[1])
     .map(([label, value]) => ({
       label: label.charAt(0).toUpperCase() + label.slice(1),
       value,
-    }))
+    }));
 
   // ── Top browsers ──────────────────────────────────────────
-  const browserCounts = new Map<string, number>()
-  rows.forEach(r => {
-    const b = r.browser ?? 'unknown'
-    browserCounts.set(b, (browserCounts.get(b) ?? 0) + 1)
-  })
+  const browserCounts = new Map<string, number>();
+  rows.forEach((r) => {
+    const b = r.browser ?? "unknown";
+    browserCounts.set(b, (browserCounts.get(b) ?? 0) + 1);
+  });
   const topBrowsers = Array.from(browserCounts.entries())
     .sort((a, b) => b[1] - a[1])
     .map(([label, value]) => ({
       label: label.charAt(0).toUpperCase() + label.slice(1),
       value,
-    }))
+    }));
 
   // ── Top OS ────────────────────────────────────────────────
-  const osCounts = new Map<string, number>()
-  rows.forEach(r => {
-    const o = r.os ?? 'unknown'
-    osCounts.set(o, (osCounts.get(o) ?? 0) + 1)
-  })
+  const osCounts = new Map<string, number>();
+  rows.forEach((r) => {
+    const o = r.os ?? "unknown";
+    osCounts.set(o, (osCounts.get(o) ?? 0) + 1);
+  });
   const topOS = Array.from(osCounts.entries())
     .sort((a, b) => b[1] - a[1])
     .map(([label, value]) => ({
       label: label.charAt(0).toUpperCase() + label.slice(1),
       value,
-    }))
+    }));
 
   // ── Stat cards data ───────────────────────────────────────
   const STATS = [
     {
-      label: 'Total Visitors',
+      label: "Total Visitors",
       value: formatNumber(totalVisitors),
       sub: `${formatNumber(newVisitors)} new this month`,
       positive: true,
     },
     {
-      label: 'Page Views',
+      label: "Page Views",
       value: formatNumber(totalPageviews),
-      sub: `${totalVisitors > 0 ? (totalPageviews / totalVisitors).toFixed(1) : 0} pages / visit`,
+      sub: `${
+        totalVisitors > 0 ? (totalPageviews / totalVisitors).toFixed(1) : 0
+      } pages / visit`,
       positive: true,
     },
     {
-      label: 'Bounce Rate',
+      label: "Bounce Rate",
       value: `${bounceRate}%`,
-      sub: bounceRate < 50 ? 'Good engagement' : 'High bounce',
+      sub: bounceRate < 50 ? "Good engagement" : "High bounce",
       positive: bounceRate < 50,
     },
     {
-      label: 'Avg Session',
+      label: "Avg Session",
       value: formatDuration(avgDuration),
       sub: `${allDurations.length} sessions tracked`,
       positive: avgDuration > 30,
     },
-  ]
+  ];
+
+  // ── Visitors + Revenue combo chart data, one bucket per day ──
+  const dayKeys: string[] = [];
+  const dayBuckets = new Map<
+    string,
+    {
+      fullDate: string;
+      sessions: Map<string, boolean>; // sessionId -> isNew
+      revenueCents: number;
+      newRevenueCents: number;
+      returningRevenueCents: number;
+      conversions: number;
+    }
+  >();
+  for (let i = 29; i >= 0; i--) {
+    const d = new Date();
+    d.setDate(d.getDate() - i);
+    const key = d.toISOString().slice(0, 10);
+    dayKeys.push(key);
+    dayBuckets.set(key, {
+      fullDate: d.toLocaleDateString("en-US", {
+        weekday: "long",
+        day: "numeric",
+        month: "long",
+      }),
+      sessions: new Map(),
+      revenueCents: 0,
+      newRevenueCents: 0,
+      returningRevenueCents: 0,
+      conversions: 0,
+    });
+  }
+
+  rows.forEach((r) => {
+    const key = r.visited_at.slice(0, 10);
+    const bucket = dayBuckets.get(key);
+    if (!bucket) return;
+    const existing = bucket.sessions.get(r.session_id);
+    bucket.sessions.set(r.session_id, existing || !!r.is_new_visitor);
+  });
+
+  const seenEmails = new Set<string>();
+  conversionRows.forEach((c) => {
+    const key = c.received_at.slice(0, 10);
+    const bucket = dayBuckets.get(key);
+    if (!bucket) return;
+    bucket.revenueCents += c.amount_cents;
+    bucket.conversions += 1;
+    const isNewCustomer = c.customer_email
+      ? !seenEmails.has(c.customer_email)
+      : true;
+    if (c.customer_email) seenEmails.add(c.customer_email);
+    if (isNewCustomer) bucket.newRevenueCents += c.amount_cents;
+    else bucket.returningRevenueCents += c.amount_cents;
+  });
+
+  const chartData: VisitorRevenueDay[] = dayKeys.map((key) => {
+    const b = dayBuckets.get(key)!;
+    const visitors = b.sessions.size;
+    const newVisitorsCount = Array.from(b.sessions.values()).filter(
+      Boolean,
+    ).length;
+    return {
+      date: new Date(key).toLocaleDateString("en-US", {
+        month: "short",
+        day: "numeric",
+      }),
+      fullDate: b.fullDate,
+      visitors,
+      newVisitors: newVisitorsCount,
+      returningVisitors: visitors - newVisitorsCount,
+      revenueCents: b.revenueCents,
+      newRevenueCents: b.newRevenueCents,
+      returningRevenueCents: b.returningRevenueCents,
+      conversions: b.conversions,
+    };
+  });
 
   return (
     <AppShell>
       <div className="p-8">
-
         {/* Header */}
         <div className="mb-6 flex items-start justify-between flex-wrap gap-4">
           <div>
             <h1 className="text-heading-lg text-ink mb-0.5">Analytics</h1>
             <p className="text-body-sm text-muted">
-              {site.domain} · Last 30 days ·{' '}
+              {site.domain} · Last 30 days ·{" "}
               {totalPageviews === 0
-                ? 'No data yet — make sure track.js is installed'
+                ? "No data yet — make sure track.js is installed"
                 : `${formatNumber(totalPageviews)} pageviews recorded`}
             </p>
           </div>
 
           {/* Tab switcher */}
-          <div className="flex gap-1 bg-surface-muted p-1 rounded-xl border border-line">
-            <Link
-              href="/analytics"
-              className="px-4 py-2 rounded-lg text-body-sm font-medium text-muted hover:text-body transition-all"
-            >
-              Revenue
-            </Link>
-            <span className="px-4 py-2 rounded-lg text-body-sm font-medium bg-surface text-ink shadow-card">
-              Traffic
-            </span>
+          <div className="flex items-center gap-2">
+            <DateRangePicker />
           </div>
         </div>
 
@@ -272,11 +415,11 @@ export default async function TrafficAnalyticsPage() {
             <div className="text-4xl mb-3">📡</div>
             <h2 className="text-heading-sm text-ink mb-2">No pageviews yet</h2>
             <p className="text-body-sm text-muted mb-5 max-w-sm mx-auto">
-              Make sure your tracking script is installed on{' '}
-              <strong>{site.domain}</strong> and visitors are arriving with{' '}
+              Make sure your tracking script is installed on{" "}
+              <strong>{site.domain}</strong> and visitors are arriving with{" "}
               <code className="bg-surface-muted px-1.5 py-0.5 rounded text-xs font-mono text-primary">
                 ?st=
-              </code>{' '}
+              </code>{" "}
               in their URL.
             </p>
             <Link href="/settings" className="btn-outline-primary text-sm">
@@ -287,15 +430,45 @@ export default async function TrafficAnalyticsPage() {
 
         {/* Stat cards */}
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
-          {STATS.map(s => (
+          {STATS.map((s) => (
             <div key={s.label} className="card p-5">
               <div className="text-body-sm text-body mb-2">{s.label}</div>
-              <div className="text-2xl font-bold text-ink tabular mb-1">{s.value}</div>
-              <div className={`text-caption font-medium ${s.positive ? 'text-success' : 'text-primary'}`}>
+              <div className="text-2xl font-bold text-ink tabular mb-1">
+                {s.value}
+              </div>
+              <div
+                className={`text-caption font-medium ${
+                  s.positive ? "text-success" : "text-primary"
+                }`}
+              >
                 {s.sub}
               </div>
             </div>
           ))}
+        </div>
+
+        {/* Visitors + Revenue combo chart, right beneath the stat cards */}
+        <div className="card p-5 mb-6">
+          <div className="flex items-center justify-between mb-4 flex-wrap gap-3">
+            <h2 className="text-heading-sm text-ink">Visitors & Revenue</h2>
+            <div className="flex items-center gap-3 flex-wrap">
+              <span className="flex items-center gap-1.5 text-body-sm text-muted">
+                <span
+                  className="w-2.5 h-2.5 rounded-sm"
+                  style={{ backgroundColor: "#93C5FD" }}
+                />
+                Visitors
+              </span>
+              <span className="flex items-center gap-1.5 text-body-sm text-muted">
+                <span
+                  className="w-2.5 h-2.5 rounded-sm"
+                  style={{ backgroundColor: "#F0A585" }}
+                />
+                Revenue
+              </span>
+            </div>
+          </div>
+          <VisitorRevenueChart data={chartData} />
         </div>
 
         {/* Panels */}
@@ -310,5 +483,5 @@ export default async function TrafficAnalyticsPage() {
         </div>
       </div>
     </AppShell>
-  )
+  );
 }
