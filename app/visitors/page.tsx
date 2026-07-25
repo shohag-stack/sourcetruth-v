@@ -82,6 +82,81 @@ function countryFlag(code: string): string {
 
 type Range = "24h" | "7d" | "30d" | "90d" | "1y" | "all";
 
+// ─── Chart bucketing — granularity adapts to the selected range.
+// 24h alone in daily buckets is useless (~1 near-empty bar), so this
+// picks hour/day/week/month depending on how wide the window is. ──
+type BucketUnit = "hour" | "day" | "week" | "month";
+
+function getBucketUnit(range: Range): BucketUnit {
+  switch (range) {
+    case "24h":
+      return "hour";
+    case "7d":
+    case "30d":
+      return "day";
+    case "90d":
+      return "week";
+    case "1y":
+    case "all":
+      return "month";
+  }
+}
+
+function truncate(date: Date, unit: BucketUnit): Date {
+  const d = new Date(date);
+  if (unit === "hour") {
+    d.setMinutes(0, 0, 0);
+    return d;
+  }
+  d.setHours(0, 0, 0, 0);
+  if (unit === "day") return d;
+  if (unit === "week") {
+    d.setDate(d.getDate() - d.getDay()); // back to Sunday
+    return d;
+  }
+  d.setDate(1); // month
+  return d;
+}
+
+function bucketKey(date: Date, unit: BucketUnit): string {
+  if (unit === "hour") return date.toISOString().slice(0, 13); // YYYY-MM-DDTHH
+  if (unit === "month") return date.toISOString().slice(0, 7); // YYYY-MM
+  return date.toISOString().slice(0, 10); // YYYY-MM-DD (day or week-start)
+}
+
+function shortLabel(date: Date, unit: BucketUnit): string {
+  if (unit === "hour") return date.toLocaleTimeString("en-US", { hour: "numeric" });
+  if (unit === "month") return date.toLocaleDateString("en-US", { month: "short", year: "numeric" });
+  return date.toLocaleDateString("en-US", { month: "short", day: "numeric" });
+}
+
+function fullLabel(date: Date, unit: BucketUnit): string {
+  if (unit === "hour") {
+    return date.toLocaleString("en-US", { weekday: "long", month: "long", day: "numeric", hour: "numeric" });
+  }
+  if (unit === "month") return date.toLocaleDateString("en-US", { month: "long", year: "numeric" });
+  if (unit === "week") return `Week of ${date.toLocaleDateString("en-US", { month: "long", day: "numeric" })}`;
+  return date.toLocaleDateString("en-US", { weekday: "long", day: "numeric", month: "long" });
+}
+
+function advance(date: Date, unit: BucketUnit, steps: number): Date {
+  const d = new Date(date);
+  if (unit === "hour") d.setHours(d.getHours() + steps);
+  else if (unit === "day") d.setDate(d.getDate() + steps);
+  else if (unit === "week") d.setDate(d.getDate() + steps * 7);
+  else d.setMonth(d.getMonth() + steps);
+  return d;
+}
+
+const RANGE_PHRASE: Record<Range, string> = {
+  "24h": "today",
+  "7d": "this week",
+  "30d": "this month",
+  "90d": "this quarter",
+  "1y": "this year",
+  all: "all time",
+};
+
 // ─── Page ─────────────────────────────────────────────────────
 export default async function TrafficAnalyticsPage({
   searchParams,
@@ -185,18 +260,9 @@ export default async function TrafficAnalyticsPage({
       ? allDurations.reduce((a, b) => a + b, 0) / allDurations.length
       : 0;
 
-  // ── Bounce rate — FIXED. The raw `is_bounce` column on each pageview
-  // row means "this session viewed only one page," which is technically
-  // correct but conceptually wrong: a visitor who spends 6+ minutes on
-  // a single page (common on single-page sites) isn't a bad bounce,
-  // they're engaged. That's exactly what was happening — "1.0
-  // pages/visit" + "6m 25s avg session" + "100% bounce rate" all at
-  // once, which is contradictory if bounce is meant to signal disengaged
-  // visitors.
-  //
-  // Real bounce = single pageview AND left quickly. Recomputed here
-  // using page-count + duration (already fetched for the stat cards
-  // above) instead of trusting the page-count-only is_bounce column.
+  // ── Bounce rate — single pageview AND left quickly (<10s), not just
+  // single pageview. A visitor who stays 6+ minutes on one page is
+  // engaged, not bounced. ──
   const BOUNCE_DURATION_THRESHOLD_SECONDS = 10;
   const pageCountBySession = new Map<string, number>();
   rows.forEach((r) => {
@@ -286,7 +352,7 @@ export default async function TrafficAnalyticsPage({
     {
       label: "Total Visitors",
       value: formatNumber(totalVisitors),
-      sub: `${formatNumber(newVisitors)} new this month`,
+      sub: `${formatNumber(newVisitors)} new ${RANGE_PHRASE[range]}`,
       positive: true,
     },
     {
@@ -311,8 +377,45 @@ export default async function TrafficAnalyticsPage({
     },
   ];
 
-  // ── Visitors + Revenue combo chart data, one bucket per day ──
-  const dayKeys: string[] = [];
+  // ── Visitors + Revenue combo chart data — bucket granularity now
+  // matches the selected range instead of always being 30 daily bars. ──
+  const unit = getBucketUnit(range);
+  const now = new Date();
+  const nowBucketStart = truncate(now, unit);
+
+  let bucketStarts: Date[];
+  if (range === "all") {
+    // no fixed count — span from the earliest real data point to now
+    const allTimestamps = [
+      ...rows.map((r) => new Date(r.visited_at).getTime()),
+      ...conversionRows.map((c) => new Date(c.received_at).getTime()),
+    ];
+    const earliest = allTimestamps.length ? new Date(Math.min(...allTimestamps)) : now;
+    const earliestBucketStart = truncate(earliest, unit);
+    bucketStarts = [];
+    let cursor = earliestBucketStart;
+    // safety cap so a data-entry typo years in the past can't blow up the loop
+    let guard = 0;
+    while (cursor <= nowBucketStart && guard < 600) {
+      bucketStarts.push(cursor);
+      cursor = advance(cursor, unit, 1);
+      guard += 1;
+    }
+    if (bucketStarts.length === 0) bucketStarts = [nowBucketStart];
+  } else {
+    const BUCKET_COUNT: Record<Exclude<Range, "all">, number> = {
+      "24h": 24,
+      "7d": 7,
+      "30d": 30,
+      "90d": 13, // ~90 days as weeks
+      "1y": 12,
+    };
+    const count = BUCKET_COUNT[range];
+    bucketStarts = Array.from({ length: count }, (_, idx) =>
+      advance(nowBucketStart, unit, idx - (count - 1)),
+    );
+  }
+
   const dayBuckets = new Map<
     string,
     {
@@ -324,27 +427,22 @@ export default async function TrafficAnalyticsPage({
       conversions: number;
     }
   >();
-  for (let i = 29; i >= 0; i--) {
-    const d = new Date();
-    d.setDate(d.getDate() - i);
-    const key = d.toISOString().slice(0, 10);
+  const dayKeys: string[] = [];
+  bucketStarts.forEach((d) => {
+    const key = bucketKey(d, unit);
     dayKeys.push(key);
     dayBuckets.set(key, {
-      fullDate: d.toLocaleDateString("en-US", {
-        weekday: "long",
-        day: "numeric",
-        month: "long",
-      }),
+      fullDate: fullLabel(d, unit),
       sessions: new Map(),
       revenueCents: 0,
       newRevenueCents: 0,
       returningRevenueCents: 0,
       conversions: 0,
     });
-  }
+  });
 
   rows.forEach((r) => {
-    const key = r.visited_at.slice(0, 10);
+    const key = bucketKey(truncate(new Date(r.visited_at), unit), unit);
     const bucket = dayBuckets.get(key);
     if (!bucket) return;
     const existing = bucket.sessions.get(r.session_id);
@@ -353,7 +451,7 @@ export default async function TrafficAnalyticsPage({
 
   const seenEmails = new Set<string>();
   conversionRows.forEach((c) => {
-    const key = c.received_at.slice(0, 10);
+    const key = bucketKey(truncate(new Date(c.received_at), unit), unit);
     const bucket = dayBuckets.get(key);
     if (!bucket) return;
     bucket.revenueCents += c.amount_cents;
@@ -366,17 +464,13 @@ export default async function TrafficAnalyticsPage({
     else bucket.returningRevenueCents += c.amount_cents;
   });
 
-  const chartData: VisitorRevenueDay[] = dayKeys.map((key) => {
+  const chartData: VisitorRevenueDay[] = bucketStarts.map((d) => {
+    const key = bucketKey(d, unit);
     const b = dayBuckets.get(key)!;
     const visitors = b.sessions.size;
-    const newVisitorsCount = Array.from(b.sessions.values()).filter(
-      Boolean,
-    ).length;
+    const newVisitorsCount = Array.from(b.sessions.values()).filter(Boolean).length;
     return {
-      date: new Date(key).toLocaleDateString("en-US", {
-        month: "short",
-        day: "numeric",
-      }),
+      date: shortLabel(d, unit),
       fullDate: b.fullDate,
       visitors,
       newVisitors: newVisitorsCount,
@@ -396,7 +490,7 @@ export default async function TrafficAnalyticsPage({
           <div>
             <h1 className="text-heading-lg text-ink mb-0.5">Analytics</h1>
             <p className="text-body-sm text-muted">
-              {site.domain} · Last 30 days ·{" "}
+              {site.domain} · {RANGE_PHRASE[range] === "all time" ? "All time" : `Last ${range}`} ·{" "}
               {totalPageviews === 0
                 ? "No data yet — make sure track.js is installed"
                 : `${formatNumber(totalPageviews)} pageviews recorded`}
