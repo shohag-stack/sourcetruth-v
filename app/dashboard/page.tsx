@@ -1,6 +1,7 @@
 // app/dashboard/page.tsx
 import { AppShell } from '@/components/layout/AppShell'
 import { RevenueAreaChart } from '@/components/charts/RevenueAreaChart'
+import { VisitorRevenueChart, VisitorRevenueDay } from '@/components/charts/VisitorRevenueChart'
 import { PLATFORM_META } from '@/lib/dummy-data' // static branding lookup only
 import { countryFlag } from '@/lib/countryFlag'
 import { formatMoney, formatMoneyFull, formatNumber, timeAgo, trendLabel } from '@/lib/utils'
@@ -23,6 +24,7 @@ export default async function DashboardPage() {
   const now = new Date()
   const since30 = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000).toISOString()
   const since60 = new Date(now.getTime() - 60 * 24 * 60 * 60 * 1000).toISOString()
+  const since5min = new Date(now.getTime() - 5 * 60 * 1000).toISOString()
 
   const { data: sites } = await supabase.from('sites').select('id').eq('user_id', user.id)
   const siteIds = (sites ?? []).map(s => s.id)
@@ -32,7 +34,7 @@ export default async function DashboardPage() {
     { count: postedCount },
     { data: conversions60 }, // single query, sliced in JS for 30d/prior-30d/chart/leaderboard/recent-sales
     { data: bestPostsRaw },
-    { data: pageviews60 }, // for visitor counts — see note below
+    { data: pageviews60 }, // for visitor counts, bounce rate, and the new chart — see notes below
   ] = await Promise.all([
     supabase.from('posts').select('id', { count: 'exact', head: true }).eq('user_id', user.id),
     supabase.from('posts').select('id', { count: 'exact', head: true }).eq('user_id', user.id).eq('status', 'posted'),
@@ -57,14 +59,49 @@ export default async function DashboardPage() {
     // submits an email via identify(). That mismatch was why this stat
     // showed 0 despite real traffic existing (see Traffic Analytics page,
     // which was already counting pageviews correctly).
+    // Also selecting duration_seconds/is_new_visitor now — needed for the
+    // real bounce-rate calc and the new combo chart below.
     siteIds.length
-      ? supabase.from('pageviews').select('session_id, visited_at').in('site_id', siteIds).gte('visited_at', since60)
-      : Promise.resolve({ data: [] as { session_id: string; visited_at: string }[] }),
+      ? supabase
+          .from('pageviews')
+          .select('session_id, visited_at, duration_seconds, is_new_visitor')
+          .in('site_id', siteIds)
+          .gte('visited_at', since60)
+      : Promise.resolve({ data: [] as { session_id: string; visited_at: string; duration_seconds: number | null; is_new_visitor: boolean }[] }),
   ])
 
   const pageviewRows = pageviews60 ?? []
-  const visitors30 = new Set(pageviewRows.filter(p => p.visited_at >= since30).map(p => p.session_id)).size
+  const pageviewsThis30 = pageviewRows.filter(p => p.visited_at >= since30)
+  const visitors30 = new Set(pageviewsThis30.map(p => p.session_id)).size
   const visitorsPrior30 = new Set(pageviewRows.filter(p => p.visited_at < since30).map(p => p.session_id)).size
+
+  // ── Bounce rate — same fix as the Traffic page: single pageview AND
+  // left quickly (<10s), not just single pageview. A visitor who stays
+  // minutes on one page is engaged, not bounced. ──
+  const BOUNCE_DURATION_THRESHOLD_SECONDS = 10
+  const pageCountBySession30 = new Map<string, number>()
+  const durationBySession30 = new Map<string, number>()
+  pageviewsThis30.forEach(p => {
+    pageCountBySession30.set(p.session_id, (pageCountBySession30.get(p.session_id) ?? 0) + 1)
+    durationBySession30.set(p.session_id, (durationBySession30.get(p.session_id) ?? 0) + (p.duration_seconds ?? 0))
+  })
+  let bouncedCount30 = 0
+  new Set(pageviewsThis30.map(p => p.session_id)).forEach(sessionId => {
+    const pageCount = pageCountBySession30.get(sessionId) ?? 0
+    const duration = durationBySession30.get(sessionId) ?? 0
+    if (pageCount <= 1 && duration < BOUNCE_DURATION_THRESHOLD_SECONDS) bouncedCount30 += 1
+  })
+  const bounceRate30 = visitors30 > 0 ? Math.round((bouncedCount30 / visitors30) * 100) : 0
+
+  // ── "Online" — real approximation: distinct sessions with a pageview
+  // in the last 5 minutes. No persistent heartbeat/presence system exists
+  // yet, but this is the same approach Plausible and most lightweight
+  // analytics tools use for "current visitors" — not a placeholder, a
+  // legitimate (if slightly coarse) live signal built from data you
+  // already have. ──
+  const onlineNow = new Set(
+    pageviewRows.filter(p => p.visited_at >= since5min).map(p => p.session_id)
+  ).size
 
   const allConversions = conversions60 ?? []
   const conversionsThis30 = allConversions.filter(c => c.received_at >= since30)
@@ -114,7 +151,8 @@ export default async function DashboardPage() {
     .map(([source, revenue_cents]) => ({ source, revenue_cents }))
     .sort((a, b) => b.revenue_cents - a.revenue_cents)
 
-  // ── Daily revenue series for the chart, grouped by REAL source ──
+  // ── Daily revenue series for the "Revenue by Source" chart, grouped
+  // by REAL source ──
   const CHART_CHANNELS = ['linkedin', 'instagram', 'twitter', 'facebook', 'threads'] as const
   const dayBuckets = new Map<string, Record<string, any>>()
   for (let i = 29; i >= 0; i--) {
@@ -140,6 +178,68 @@ export default async function DashboardPage() {
     return { date: __label, ...rest }
   })
 
+  // ── Visitors + Revenue combo chart data — same shape/logic as the
+  // Traffic page's chart, fixed to a 30-day daily view here since the
+  // Dashboard doesn't have a range picker. ──
+  const vrBuckets = new Map<string, {
+    fullDate: string
+    sessions: Map<string, boolean>
+    revenueCents: number
+    newRevenueCents: number
+    returningRevenueCents: number
+    conversions: number
+  }>()
+  const vrDayKeys: string[] = []
+  for (let i = 29; i >= 0; i--) {
+    const d = new Date(now)
+    d.setDate(d.getDate() - i)
+    const key = d.toISOString().slice(0, 10)
+    vrDayKeys.push(key)
+    vrBuckets.set(key, {
+      fullDate: d.toLocaleDateString('en-US', { weekday: 'long', day: 'numeric', month: 'long' }),
+      sessions: new Map(),
+      revenueCents: 0,
+      newRevenueCents: 0,
+      returningRevenueCents: 0,
+      conversions: 0,
+    })
+  }
+  pageviewsThis30.forEach(p => {
+    const key = p.visited_at.slice(0, 10)
+    const bucket = vrBuckets.get(key)
+    if (!bucket) return
+    const existing = bucket.sessions.get(p.session_id)
+    bucket.sessions.set(p.session_id, existing || !!p.is_new_visitor)
+  })
+  const vrSeenEmails = new Set<string>()
+  conversionsThis30.forEach(c => {
+    const key = c.received_at.slice(0, 10)
+    const bucket = vrBuckets.get(key)
+    if (!bucket) return
+    bucket.revenueCents += c.amount_cents
+    bucket.conversions += 1
+    const isNewCustomer = c.customer_email ? !vrSeenEmails.has(c.customer_email) : true
+    if (c.customer_email) vrSeenEmails.add(c.customer_email)
+    if (isNewCustomer) bucket.newRevenueCents += c.amount_cents
+    else bucket.returningRevenueCents += c.amount_cents
+  })
+  const visitorRevenueData: VisitorRevenueDay[] = vrDayKeys.map(key => {
+    const b = vrBuckets.get(key)!
+    const visitors = b.sessions.size
+    const newVisitorsCount = Array.from(b.sessions.values()).filter(Boolean).length
+    return {
+      date: new Date(key).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }),
+      fullDate: b.fullDate,
+      visitors,
+      newVisitors: newVisitorsCount,
+      returningVisitors: visitors - newVisitorsCount,
+      revenueCents: b.revenueCents,
+      newRevenueCents: b.newRevenueCents,
+      returningRevenueCents: b.returningRevenueCents,
+      conversions: b.conversions,
+    }
+  })
+
   const recentSales = allConversions.slice(0, 4)
 
   const statCards = [
@@ -147,9 +247,8 @@ export default async function DashboardPage() {
     { label: 'Revenues', value: formatMoneyFull(totalRevenueCents30 / 100), trend: `${trendLabel(revenueGrowth)} vs last month` },
     { label: 'Posts', value: (totalPosts ?? 0).toString(), trend: `${conversionsThis30.length} conversions (30d)` },
     { label: 'Revenue / Post', value: formatMoney(avgRevenuePerPostCents / 100), trend: 'avg across posted' },
-    // Bounce Rate / Online — still no session or presence tracking exists.
-    { label: 'Bounce Rate', value: '—', trend: 'not tracked yet' },
-    { label: 'Online', value: '—', trend: 'not tracked yet' },
+    { label: 'Bounce Rate', value: `${bounceRate30}%`, trend: bounceRate30 < 50 ? 'Good engagement' : 'High bounce' },
+    { label: 'Online', value: onlineNow.toString(), trend: 'active in last 5 min', live: true },
   ]
 
   return (
@@ -173,30 +272,33 @@ export default async function DashboardPage() {
         <div className="card mb-6 grid grid-cols-2 md:grid-cols-3 xl:grid-cols-6 divide-y xl:divide-y-0 xl:divide-x divide-line">
           {statCards.map(s => (
             <div key={s.label} className="p-5">
-              <div className="text-body-sm text-body mb-2">{s.label}</div>
+              <div className="flex items-center gap-1.5 text-body-sm text-body mb-2">
+                {s.label}
+                {(s as any).live && <span className="w-1.5 h-1.5 rounded-full bg-success animate-pulse" />}
+              </div>
               <div className="text-2xl font-bold text-ink tabular mb-1">{s.value}</div>
               <div className="text-caption font-medium text-muted normal-case">{s.trend}</div>
             </div>
           ))}
         </div>
 
-        {/* ── Revenue by source chart — grouped by real conversions.source ── */}
+        {/* ── Visitors + Revenue combo chart — same as the Traffic page,
+             fixed to a 30-day daily view here ── */}
         <div className="card p-5 mb-6">
           <div className="flex items-center justify-between mb-4 flex-wrap gap-3">
-            <h2 className="text-heading-sm text-ink">Revenue by Source</h2>
+            <h2 className="text-heading-sm text-ink">Visitors & Revenue</h2>
             <div className="flex items-center gap-3 flex-wrap">
-              {CHART_CHANNELS.map(ch => {
-                const meta = metaFor(ch)
-                return (
-                  <span key={ch} className="flex items-center gap-1.5 text-body-sm text-muted">
-                    <span className="w-2 h-2 rounded-full" style={{ backgroundColor: meta.color }} />
-                    {meta.name}
-                  </span>
-                )
-              })}
+              <span className="flex items-center gap-1.5 text-body-sm text-muted">
+                <span className="w-2.5 h-2.5 rounded-sm" style={{ backgroundColor: '#93C5FD' }} />
+                Visitors
+              </span>
+              <span className="flex items-center gap-1.5 text-body-sm text-muted">
+                <span className="w-2.5 h-2.5 rounded-sm" style={{ backgroundColor: '#F0A585' }} />
+                Revenue
+              </span>
             </div>
           </div>
-          <RevenueAreaChart data={chartData} />
+          <VisitorRevenueChart data={visitorRevenueData} />
         </div>
 
         {/* ── Best performing posts ── */}
