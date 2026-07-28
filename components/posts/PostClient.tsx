@@ -277,8 +277,17 @@ export default function PostClient({ posts: initialPosts, postSources }: PostCli
                   )}
                 </div>
 
-                <div className="mt-2 text-[11px] text-primary font-mono bg-primary-tint px-2 py-1 rounded-lg truncate">
-                  {post.tracked_link}
+                {/* NEW — link to the per-post analytics page */}
+                <div className="flex items-center justify-between gap-2 mt-2">
+                  <div className="text-[11px] text-primary font-mono bg-primary-tint px-2 py-1 rounded-lg truncate flex-1">
+                    {post.tracked_link}
+                  </div>
+                  <Link
+                    href={`/posts/${post.id}`}
+                    className="text-[12px] text-primary hover:text-primary-hover font-medium flex-shrink-0 whitespace-nowrap"
+                  >
+                    View analytics →
+                  </Link>
                 </div>
               </div>
             );

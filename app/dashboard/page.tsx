@@ -1,8 +1,6 @@
 // app/dashboard/page.tsx
 import { AppShell } from '@/components/layout/AppShell'
-import { RevenueAreaChart } from '@/components/charts/RevenueAreaChart'
 import { VisitorRevenueChart, VisitorRevenueDay } from '@/components/charts/VisitorRevenueChart'
-import { PLATFORM_META } from '@/lib/dummy-data' // static branding lookup only
 import { countryFlag } from '@/lib/countryFlag'
 import { formatMoney, formatMoneyFull, formatNumber, timeAgo, trendLabel } from '@/lib/utils'
 import { createClient } from '@/utils/supabase/server'
@@ -17,6 +15,7 @@ function pctChange(current: number, previous: number): number {
 }
 
 export default async function DashboardPage() {
+  
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) redirect('/auth/login')
