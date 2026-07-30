@@ -1,4 +1,5 @@
 // app/revenue/page.tsx
+import Link from 'next/link'
 import { AppShell } from '@/components/layout/AppShell'
 import { countryFlag } from '@/lib/countryFlag'
 import { createClient } from '@/utils/supabase/server'
@@ -287,14 +288,17 @@ export default async function RevenuePage() {
                   return (
                     <div key={conv.id} className="card p-4 flex flex-wrap items-center gap-4">
 
-                      {/* Customer + device row */}
-                      <div className="flex items-center gap-3 min-w-[220px] flex-1">
+                      {/* Customer + device row — links to the full journey page */}
+                      <Link
+                        href={`/revenue/customers/${encodeURIComponent(conv.customer_email ?? '')}`}
+                        className="flex items-center gap-3 min-w-[220px] flex-1 group"
+                      >
                         <div className="w-10 h-10 rounded-full bg-surface-muted flex items-center justify-center text-sm font-bold text-body flex-shrink-0">
                           {(conv.customer_email ?? '?').charAt(0).toUpperCase()}
                         </div>
                         <div className="min-w-0">
                           <div className="flex items-center gap-2 flex-wrap">
-                            <span className="text-body-sm font-semibold text-ink truncate">
+                            <span className="text-body-sm font-semibold text-ink truncate group-hover:text-primary group-hover:underline transition-colors">
                               {maskEmail(conv.customer_email)}
                             </span>
                             <span className={returning ? 'badge-success' : 'badge-primary-tint'}>
@@ -308,7 +312,7 @@ export default async function RevenuePage() {
                             {conv.browser && <span>{BROWSER_ICON[conv.browser] ?? '○'} {BROWSER_LABEL[conv.browser] ?? conv.browser}</span>}
                           </div>
                         </div>
-                      </div>
+                      </Link>
 
                       {/* Source + post — this row is SourceTruth's own
                           differentiator on top of the DataFast-style fields */}
