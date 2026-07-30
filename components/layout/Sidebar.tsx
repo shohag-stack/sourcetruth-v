@@ -1,8 +1,9 @@
 'use client'
 import Link from 'next/link'
-import { usePathname } from 'next/navigation'
+import { usePathname, useRouter } from 'next/navigation'
 import { cn } from '@/lib/utils'
 import Image from 'next/image'
+import { createClient } from '@/utils/supabase/client'
 
 const NAV_MAIN = [
   { href: '/dashboard', label: 'Overview', icon: '◈' },
@@ -20,8 +21,17 @@ const NAV_BOTTOM = [
 
 export function Sidebar() {
   const pathname = usePathname()
+  const router = useRouter()
   const isActive = (href: string) =>
     pathname === href || (href !== '/dashboard' && pathname.startsWith(href))
+
+  // NEW — real sign out, not just a static user block
+  async function handleSignOut() {
+    const supabase = createClient()
+    await supabase.auth.signOut()
+    router.push('/auth/login')
+    router.refresh() // clears any cached client state tied to the old session
+  }
 
   return (
     <aside className="w-[220px] bg-white border-r border-[#E8ECF2] flex flex-col min-h-screen fixed top-0 left-0 z-40">
@@ -74,6 +84,15 @@ export function Sidebar() {
             </Link>
           )
         })}
+
+        {/* NEW — Sign out, same nav-item styling as everything above it */}
+        <button
+          onClick={handleSignOut}
+          className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm transition-all text-[#475569] hover:text-[#EF4444] hover:bg-[#FEF2F2]"
+        >
+          <span className="w-4 text-center text-sm text-[#94A3B8]">⏻</span>
+          Sign out
+        </button>
       </nav>
 
       <div className="mx-3 mb-3 p-3.5 rounded-xl bg-[#F8F9FC] border border-[#E8ECF2]">
