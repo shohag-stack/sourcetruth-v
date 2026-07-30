@@ -51,14 +51,16 @@ export async function POST(request: Request) {
   // (non-post) case.
   const stClickSource: string | undefined = customData.st_click_source;
   const stFirstSource: string | undefined = customData.st_first_source;
-  const stSource = stClickSource ?? stFirstSource;
+
   // DataFast-style fields, present for every sale now (not just ones
   // with a tracked-link ref).
   const stDevice: string | undefined = customData.st_device;
   const stOs: string | undefined = customData.st_os;
   const stBrowser: string | undefined = customData.st_browser;
   const stFirstSeenMs: string | undefined = customData.st_first_seen;
-  const firstSeenAt = stFirstSeenMs ? new Date(Number(stFirstSeenMs)).toISOString() : null;
+  const firstSeenAt = stFirstSeenMs
+    ? new Date(Number(stFirstSeenMs)).toISOString()
+    : null;
   // NEW — real visited-country/city from your own geo lookup (via
   // /api/pageview), more reliable than whatever LS's own payload has
   // (that's typically billing address, not where they actually browsed
@@ -107,6 +109,8 @@ export async function POST(request: Request) {
   }
 
   const postId = post?.id ?? null;
+  const conversionSource = stClickSource ?? post?.channel ?? visitor?.last_source ?? null;
+  const firstSource = stFirstSource ?? visitor?.first_source ?? (post ? post.channel : null);
 
   const { error } = await supabase.from("conversions").insert({
     user_id: conn.user_id,
@@ -118,8 +122,8 @@ export async function POST(request: Request) {
     amount_cents: amountCents,
     currency: attrs.currency ?? "USD",
     product_name: attrs.first_order_item?.product_name ?? null,
-    source: stSource ?? post?.channel ?? visitor?.last_source ?? null,
-    first_source: stSource ?? visitor?.first_source ?? (post ? post.channel : null),
+    source: conversionSource,
+    first_source: firstSource,
     first_post_id: visitor?.first_post_id ?? postId,
     attribution_model: stRef ? "click_ref" : "last_touch",
     device: stDevice ?? null,

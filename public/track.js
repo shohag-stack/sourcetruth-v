@@ -19,12 +19,6 @@
     if (!referrer) return "direct"; // also hit by in-app browsers that strip referrer entirely
     try {
       const host = new URL(referrer).hostname.replace(/^www\./, "");
-      if (/linkedin\.com|lnkd\.in/.test(host)) return "linkedin";
-      if (/twitter\.com|t\.co|x\.com/.test(host)) return "twitter";
-      if (/facebook\.com|fb\.me|fb\.watch/.test(host)) return "facebook";
-      if (/instagram\.com/.test(host)) return "instagram";
-      if (/threads\.net/.test(host)) return "threads";
-      if (/bsky\.app/.test(host)) return "bluesky";
       return host; // e.g. "marclou.com" — a real backlink, not a recognized platform
     } catch (e) {
       return "direct";
