@@ -51,6 +51,7 @@ export async function POST(request: Request) {
   // (non-post) case.
   const stClickSource: string | undefined = customData.st_click_source;
   const stFirstSource: string | undefined = customData.st_first_source;
+  const stCurrentSource: string | undefined = customData.st_current_source;
 
   // DataFast-style fields, present for every sale now (not just ones
   // with a tracked-link ref).
@@ -109,7 +110,7 @@ export async function POST(request: Request) {
   }
 
   const postId = post?.id ?? null;
-  const conversionSource = stClickSource ?? post?.channel ?? visitor?.last_source ?? null;
+  const conversionSource = stCurrentSource ?? stClickSource ?? post?.channel ?? visitor?.last_source ?? null;
   const firstSource = stFirstSource ?? visitor?.first_source ?? (post ? post.channel : null);
 
   const { error } = await supabase.from("conversions").insert({

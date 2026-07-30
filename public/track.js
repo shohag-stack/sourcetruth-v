@@ -89,6 +89,7 @@
   // first-touch general record above). ──
   const params = new URLSearchParams(window.location.search);
   const ref = params.get("st");
+  const currentSource = parseReferrerSource(document.referrer);
 
   if (ref) {
     const source = parseReferrerSource(document.referrer);
@@ -211,10 +212,8 @@
     // post-click source wins if this visit came through a tracked link;
     // otherwise fall back to the general first-touch source
 
-
     const clickSource = getStoredSource(); // Source of the tracked link
-    const firstSource = touch.source;      // Visitor's first-touch source
-
+    const firstSource = touch.source; // Visitor's first-touch source
 
     const t = getTouch() || touch;
     const patchTag = slug || "general";
@@ -229,21 +228,25 @@
         if (slug) url.searchParams.set("checkout[custom][st_ref]", slug);
         if (SITE_KEY)
           url.searchParams.set("checkout[custom][st_site]", SITE_KEY);
-        
+
         if (clickSource) {
           url.searchParams.set(
             "checkout[custom][st_click_source]",
-            clickSource
+            clickSource,
           );
         }
+
+        url.searchParams.set(
+          "checkout[custom][st_current_source]",
+          currentSource,
+        );
 
         if (firstSource) {
           url.searchParams.set(
             "checkout[custom][st_first_source]",
-            firstSource
+            firstSource,
           );
         }
-
 
         if (t) {
           url.searchParams.set("checkout[custom][st_device]", t.device);
@@ -253,14 +256,14 @@
             "checkout[custom][st_first_seen]",
             String(t.first_seen_at),
           );
-        };
+        }
 
         // NEW
         if (t.country) {
-          url.searchParams.set('checkout[custom][st_country]', t.country)
+          url.searchParams.set("checkout[custom][st_country]", t.country);
         }
         if (t.city) {
-          url.searchParams.set('checkout[custom][st_city]', t.city)
+          url.searchParams.set("checkout[custom][st_city]", t.city);
         }
 
         a.setAttribute("href", url.toString());
