@@ -218,8 +218,8 @@ console.log('click rows:', clicks)
                 soldVia.map(src => {
                   const meta = metaFor(src)
                   return (
-                    <span key={src} className="text-[10px] font-bold px-1.5 py-0.5 rounded" style={{ backgroundColor: meta.bgColor, color: meta.color }}>
-                      {meta.icon} {meta.name}
+                    <span key={src} className="text-[10px] font-bold px-1.5 py-0.5 rounded">
+                       {meta.name}
                     </span>
                   )
                 })
@@ -279,7 +279,7 @@ console.log('click rows:', clicks)
                       <div className="text-body-sm font-medium text-ink truncate">{c.customer_email ?? 'Unknown'}</div>
                       <div className="text-caption text-muted normal-case font-normal flex items-center gap-1.5 mt-0.5">
                         {c.country && <span>{countryFlag(c.country)} {c.country}</span>}
-                        <span style={{ color: meta.color }}>{meta.icon} {meta.name}</span>
+                        <span> {meta.name}</span>
                       </div>
                     </div>
                     <div className="text-body-sm font-bold text-success tabular">+{formatMoney(c.amount_cents / 100)}</div>
