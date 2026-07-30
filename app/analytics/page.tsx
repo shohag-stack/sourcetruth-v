@@ -193,7 +193,7 @@ export default async function AnalyticsPage() {
                 const meta = metaFor(ch);
                 return (
                   <span key={ch} className="flex items-center gap-1.5 text-body-sm text-muted">
-                    <span className="w-2 h-2 rounded-full" style={{ backgroundColor: meta.color }} />
+                    <span className="w-2 h-2 rounded-full" />
                     {meta.name}
                   </span>
                 );
@@ -221,9 +221,9 @@ export default async function AnalyticsPage() {
                   <div className="flex items-center gap-2 mb-3">
                     <div
                       className="w-8 h-8 rounded-lg flex items-center justify-center text-sm font-bold flex-shrink-0"
-                      style={{ backgroundColor: meta.bgColor, color: meta.color }}
+                      
                     >
-                      {meta.icon}
+                      {/* {meta.} */}
                     </div>
                     <span className="font-medium text-ink">{meta.name}</span>
                   </div>
@@ -303,9 +303,8 @@ export default async function AnalyticsPage() {
                                 <span
                                   key={src}
                                   className="text-[10px] font-bold px-1.5 py-0.5 rounded"
-                                  style={{ backgroundColor: meta.bgColor, color: meta.color }}
                                 >
-                                  {meta.icon} {meta.name}
+                                  
                                 </span>
                               );
                             })
