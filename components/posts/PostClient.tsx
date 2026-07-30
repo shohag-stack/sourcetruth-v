@@ -176,9 +176,8 @@ export default function PostClient({ posts: initialPosts, postSources }: PostCli
                             <span
                               key={src}
                               className="text-[10px] font-bold px-1.5 py-0.5 rounded"
-                              style={{ backgroundColor: meta.bgColor, color: meta.color }}
                             >
-                              {meta.icon} {meta.name}
+                              {meta.name}
                             </span>
                           );
                         })
