@@ -17,6 +17,7 @@ import { createClient } from "@/utils/supabase/server";
 import { redirect } from "next/navigation";
 import Link from "next/link";
 import { metaFor } from "@/lib/metaFor";
+import BestPostCard from "@/components/posts/BestPostCard";
 
 export default async function DashboardPage() {
   const supabase = await createClient();
@@ -475,106 +476,7 @@ export default async function DashboardPage() {
                 );
 
                 return (
-                  <div key={post.id} className="card p-4">
-                    {/* Real source(s), not declared channel */}
-                    <div className="flex items-center justify-between gap-2 mb-3 flex-wrap">
-                      <div className="flex items-center gap-1.5 flex-wrap">
-                        {actualSources.length > 0 ? (
-                          actualSources.map((src) => {
-                            const meta = metaFor(src);
-                            return (
-                              <span key={src} className="badge-gray">
-                                
-                                {meta.iconType === "direct" ? (
-                                  <span>{meta.icon}</span>
-                                ) : meta.iconType === "favicon" ? (
-                                  <img
-                                    src={meta.iconUrl}
-                                    alt=""
-                                    className="h-4 w-4 rounded-sm"
-                                  />
-                                ) : (
-                                  <span className="flex h-4 w-4 items-center justify-center rounded bg-surface-muted text-[10px] font-bold text-muted">
-                                    {meta.initials}
-                                  </span>
-                                )}
-
-                                 {meta.name}
-                              </span>
-                            );
-                          })
-                        ) : (
-                          <span className="text-caption text-muted normal-case font-normal">
-                            No sales yet
-                          </span>
-                        )}
-                      </div>
-                      {countries.length > 0 && (
-                        <div className="flex items-center gap-1.5">
-                          <span className="text-caption text-muted normal-case font-normal">
-                            Top clicks:
-                          </span>
-                          <div className="flex gap-1 text-base">
-                            {countries.map((c, i) => (
-                              <span key={i} title={c}>
-                                {countryFlag(c)}
-                              </span>
-                            ))}
-                          </div>
-                        </div>
-                      )}
-                    </div>
-
-                    <p className="text-body-sm text-body leading-relaxed line-clamp-2 mb-3">
-                      {post.content}
-                    </p>
-
-                    <div className="border-t border-line -mx-4 mb-3" />
-
-                    <div className="flex items-baseline justify-between mb-3">
-                      <span className="text-heading-sm text-ink tabular">
-                        {formatMoneyFull(post.revenue_cents / 100)}
-                      </span>
-                      <span className="text-caption text-muted normal-case font-normal">
-                        / Revenue earned
-                      </span>
-                    </div>
-
-                    <div className="grid grid-cols-4 gap-2">
-                      {[
-                        {
-                          label: "Clicks",
-                          value: formatNumber(post.total_clicks),
-                        },
-                        {
-                          label: "Unique",
-                          value: formatNumber(post.unique_clicks),
-                        },
-                        {
-                          label: "Sales",
-                          value: post.total_conversions.toString(),
-                        },
-                        {
-                          label: "Conv. rate",
-                          value: `${conversionRate.toFixed(1)}%`,
-                          highlight: conversionRate > 2,
-                        },
-                      ].map((s) => (
-                        <div key={s.label} className="text-center">
-                          <div
-                            className={`text-body-sm font-bold tabular ${
-                              s.highlight ? "text-success" : "text-ink"
-                            }`}
-                          >
-                            {s.value}
-                          </div>
-                          <div className="text-[10px] text-muted mt-0.5">
-                            {s.label}
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
+                  <BestPostCard post={post} actualSources={actualSources} countries={countries} conversionRate={conversionRate} />
                 );
               })}
             </div>
@@ -604,7 +506,7 @@ export default async function DashboardPage() {
                   return (
                     <div
                       key={ch.source}
-                      className="flex items-center gap-3 py-2"
+                      className="flex items-center gap-1 py-2"
                     >
                       <div className="w-8 h-8 rounded-lg flex items-center justify-center text-sm font-bold flex-shrink-0">
                         {meta.iconType === "direct" ? (
@@ -613,7 +515,7 @@ export default async function DashboardPage() {
                           <img
                             src={meta.iconUrl}
                             alt=""
-                            className="h-4 w-4 rounded-sm"
+                            className="h-6 w-6 rounded-sm"
                           />
                         ) : (
                           <span className="flex h-4 w-4 items-center justify-center rounded bg-surface-muted text-[10px] font-bold text-muted">
