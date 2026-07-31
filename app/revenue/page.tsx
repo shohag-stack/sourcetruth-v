@@ -21,6 +21,12 @@ const OS_LABEL: Record<string, string> = { mac: 'Mac OS', windows: 'Windows', io
 const BROWSER_ICON: Record<string, string> = { chrome: '🌐', safari: '🧭', firefox: '🦊' }
 const BROWSER_LABEL: Record<string, string> = { chrome: 'Chrome', safari: 'Safari', firefox: 'Firefox', other: 'Unknown browser' }
 
+// days_to_convert is now a rounded integer stored at insert time (see
+// the webhook), so we lost the "Same visit" / "6h" granularity the old
+// client-side timeToConvert() had for same-day conversions. This just
+// re-adds a readable label on top of the integer we do have — "0" reads
+// as "Same day" rather than a bare, slightly confusing "0".
+
 // Renders whatever metaFor() gave us — direct arrow, favicon image, or
 // initials fallback for sources with no resolvable hostname. Same logic
 // as the Dashboard's Recent Sales card, kept in sync with it.
@@ -263,6 +269,7 @@ export default async function RevenuePage() {
                   const finalSrc = metaFor(conv.source)
                   const sameSource = (conv.first_source ?? conv.source) === (conv.source ?? null)
                   const returning = isReturning.get(conv.id) ?? false
+                  const convertLabel = timeToConvert(conv.first_seen_at, conv.received_at)
 
                   return (
                     <div key={conv.id} className="p-4 border-b flex flex-wrap items-center gap-4">
@@ -330,7 +337,7 @@ export default async function RevenuePage() {
 
                       {/* Time to convert */}
                       <div className="text-body-sm text-body min-w-[80px]">
-                        {conv.days_to_convert ?? <span className="text-muted">—</span>}
+                        {convertLabel ?? <span className="text-muted">—</span>}
                       </div>
 
                       {/* When */}

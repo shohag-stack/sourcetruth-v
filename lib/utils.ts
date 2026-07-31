@@ -69,3 +69,10 @@ export function maskEmail(email: string | null): string {
   const visible = local.slice(0, 3)
   return `${visible}${'*'.repeat(Math.max(local.length - 3, 3))}@${domain}`
 }
+
+export function formatDaysToConvert(days: number | null): string | null {
+  if (days === null || days === undefined) return null
+  if (days <= 0) return 'Same day'
+  if (days === 1) return '1 day'
+  return `${days} days`
+}
