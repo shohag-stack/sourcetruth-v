@@ -4,49 +4,8 @@ import { AppShell } from '@/components/layout/AppShell'
 import { countryFlag } from '@/lib/countryFlag'
 import { createClient } from '@/utils/supabase/server'
 import { redirect } from 'next/navigation'
-
-// ─── Helpers ──────────────────────────────────────────────────
-function formatMoney(cents: number): string {
-  return new Intl.NumberFormat('en-US', {
-    style: 'currency',
-    currency: 'USD',
-  }).format(cents / 100)
-}
-
-function timeAgo(dateStr: string): string {
-  const diff = Math.floor((Date.now() - new Date(dateStr).getTime()) / 1000)
-  if (diff < 60) return 'just now'
-  if (diff < 3600) return `${Math.floor(diff / 60)}m ago`
-  if (diff < 86400) return `${Math.floor(diff / 3600)}h ago`
-  return `${Math.floor(diff / 86400)}d ago`
-}
-
-// Time from first-ever visit to purchase — the "2 days" DataFast shows.
-// Only computable when first_seen_at made it through custom_data (every
-// sale going forward should have this; older sales before the track.js
-// patch won't).
-
-function timeToConvert(firstSeenAt: string | null, receivedAt: string): string | null {
-  if (!firstSeenAt) return null
-  const ms = new Date(receivedAt).getTime() - new Date(firstSeenAt).getTime()
-  if (ms < 0) return null
-  const seconds = ms / 1000
-  if (seconds < 3600) return 'Same visit'
-  if (seconds < 86400) return `${Math.round(seconds / 3600)}h`
-  return `${Math.round(seconds / 86400)}d`
-}
-
-// Masks an email like DataFast masks names: "dor******@example.com" style
-// masking for the local part, since we don't reliably have a real name
-// field from Lemon Squeezy's payload — worth confirming attrs.billing_name
-// or similar exists before switching to a real name.
-function maskEmail(email: string | null): string {
-  if (!email) return 'Unknown'
-  const [local, domain] = email.split('@')
-  if (!domain) return email
-  const visible = local.slice(0, 3)
-  return `${visible}${'*'.repeat(Math.max(local.length - 3, 3))}@${domain}`
-}
+import { formatMoney, maskEmail, timeAgo, timeToConvert } from '@/lib/utils'
+import { metaFor } from '@/lib/metaFor'
 
 const PROVIDER_META: Record<string, { name: string; icon: string }> = {
   lemon_squeezy: { name: 'Lemon Squeezy', icon: '🍋' },
@@ -56,26 +15,36 @@ const PROVIDER_META: Record<string, { name: string; icon: string }> = {
   woocommerce: { name: 'WooCommerce', icon: '◇' },
 }
 
-const CHANNEL_META: Record<string, { name: string; color: string; bgColor: string; icon: string }> = {
-  linkedin: { name: 'LinkedIn', color: '#0077B5', bgColor: '#EFF7FF', icon: 'in' },
-  twitter: { name: 'Twitter / X', color: '#000000', bgColor: '#F7F7F7', icon: '𝕏' },
-  facebook: { name: 'Facebook', color: '#1877F2', bgColor: '#EEF4FF', icon: 'f' },
-  instagram: { name: 'Instagram', color: '#E1306C', bgColor: '#FFF0F5', icon: '◎' },
-  threads: { name: 'Threads', color: '#000000', bgColor: '#F5F5F5', icon: '@' },
-  bluesky: { name: 'Bluesky', color: '#0085FF', bgColor: '#EFF6FF', icon: '🦋' },
-  direct: { name: 'Direct', color: '#5B5B5B', bgColor: '#F7F6F4', icon: '→' },
-}
-
-function sourceMeta(source: string | null) {
-  if (!source) return { name: 'Unknown', color: '#5B5B5B', bgColor: '#F7F6F4', icon: '●' }
-  return CHANNEL_META[source] ?? { name: source, color: '#5B5B5B', bgColor: '#F7F6F4', icon: '🔗' } // bare hostname, e.g. a backlink
-}
-
 const DEVICE_ICON: Record<string, string> = { desktop: '🖥️', mobile: '📱', tablet: '📱' }
 const OS_ICON: Record<string, string> = { mac: '', windows: '🪟', ios: '', android: '🤖' }
 const OS_LABEL: Record<string, string> = { mac: 'Mac OS', windows: 'Windows', ios: 'iOS', android: 'Android', other: 'Unknown OS' }
 const BROWSER_ICON: Record<string, string> = { chrome: '🌐', safari: '🧭', firefox: '🦊' }
 const BROWSER_LABEL: Record<string, string> = { chrome: 'Chrome', safari: 'Safari', firefox: 'Firefox', other: 'Unknown browser' }
+
+// Renders whatever metaFor() gave us — direct arrow, favicon image, or
+// initials fallback for sources with no resolvable hostname. Same logic
+// as the Dashboard's Recent Sales card, kept in sync with it.
+function SourceIcon({ meta }: { meta: ReturnType<typeof metaFor> }) {
+  if (meta.iconType === 'direct') {
+    return <span>{meta.icon}</span>
+  }
+  if (meta.iconType === 'favicon') {
+    return <img src={meta.iconUrl} alt="" className="h-3.5 w-3.5 rounded-sm" />
+  }
+  return (
+    <span className="flex h-3.5 w-3.5 items-center justify-center rounded bg-surface-muted text-[9px] font-bold text-muted">
+      {meta.initials}
+    </span>
+  )
+}
+
+function SourceBadge({ meta }: { meta: ReturnType<typeof metaFor> }) {
+  return (
+    <span className="inline-flex items-center gap-1 px-2 py-1 rounded-lg text-[11px] font-semibold bg-surface-muted text-ink">
+      <SourceIcon meta={meta} /> {meta.name}
+    </span>
+  )
+}
 
 export default async function RevenuePage() {
   const supabase = await createClient()
@@ -267,7 +236,7 @@ export default async function RevenuePage() {
             </div>
 
             {rows.length === 0 ? (
-              <div className="card p-12 text-center">
+              <div className="card bg-white p-12 text-center">
                 <div className="text-4xl mb-3">🎯</div>
                 <h3 className="text-heading-sm text-ink mb-2">No sales yet</h3>
                 <p className="text-body-sm text-muted max-w-sm mx-auto">
@@ -277,16 +246,26 @@ export default async function RevenuePage() {
                 </p>
               </div>
             ) : (
-              <div className="space-y-3">
+              <div className="space-y-3 bg-white rounded-xl pt-4 border border-separate">
+                <div className="hidden md:flex items-center gap-4 px-4 text-caption font-semibold text-muted normal-case tracking-wide border-b pb-4">
+                  <div className="min-w-[220px] flex-1">Customer</div>
+                  <div className="min-w-[190px]">Journey</div>
+                  <div className="min-w-[140px]">Provider</div>
+                  <div className="min-w-[70px]">Amount</div>
+                  <div className="min-w-[80px]">Converted</div>
+                  <div className="min-w-[80px] text-right ml-auto">When</div>
+                </div>
                 {rows.map(conv => {
                   const providerMeta = PROVIDER_META[conv.provider] ?? { name: conv.provider, icon: '◈' }
                   const post = Array.isArray(conv.posts) ? conv.posts[0] : conv.posts
-                  const src = sourceMeta(conv.first_source)
+                  const firstSrc = metaFor(conv.first_source ?? conv.source)
+                  const finalSrc = metaFor(conv.source)
+                  const sameSource = (conv.first_source ?? conv.source) === (conv.source ?? null)
                   const returning = isReturning.get(conv.id) ?? false
                   const convertTime = timeToConvert(conv.first_seen_at, conv.received_at)
 
                   return (
-                    <div key={conv.id} className="card p-4 flex flex-wrap items-center gap-4">
+                    <div key={conv.id} className="p-4 border-b flex flex-wrap items-center gap-4">
 
                       {/* Customer + device row — links to the full journey page */}
                       <Link
@@ -314,15 +293,23 @@ export default async function RevenuePage() {
                         </div>
                       </Link>
 
-                      {/* Source + post — this row is SourceTruth's own
-                          differentiator on top of the DataFast-style fields */}
-                      <div className="min-w-[160px]">
-                        <span
-                          className="inline-flex items-center gap-1 px-2 py-1 rounded-lg text-[11px] font-semibold"
-                          style={{ backgroundColor: src.bgColor, color: src.color }}
-                        >
-                          {src.icon} {src.name}
-                        </span>
+                      {/* Journey: where they first landed → where they actually
+                          bought — this pair is SourceTruth's own differentiator
+                          on top of the DataFast-style fields. Collapses to a
+                          single badge when the two sources are the same. */}
+                      <div className="min-w-[190px]">
+                        <div className="flex items-center gap-1 flex-wrap">
+                          <SourceBadge meta={firstSrc} />
+                          {!sameSource && (
+                            <>
+                              <span className="text-muted text-[11px]">→</span>
+                              <SourceBadge meta={finalSrc} />
+                            </>
+                          )}
+                        </div>
+                        <div className="text-[10px] text-muted normal-case font-normal mt-1">
+                          {sameSource ? 'Landed & purchased here' : 'Landed here, purchased there'}
+                        </div>
                         {post?.content && (
                           <p className="text-[11px] text-success font-medium truncate max-w-[180px] mt-1" title={post.content}>
                             {post.content.slice(0, 40)}{post.content.length > 40 ? '…' : ''}

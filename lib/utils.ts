@@ -50,3 +50,22 @@ export function pctChange(current: number, previous: number): number {
   if (previous === 0) return current > 0 ? 100 : 0;
   return ((current - previous) / previous) * 100;
 }
+
+
+export function timeToConvert(firstSeenAt: string | null, receivedAt: string): string | null {
+  if (!firstSeenAt) return null
+  const ms = new Date(receivedAt).getTime() - new Date(firstSeenAt).getTime()
+  if (ms < 0) return null
+  const seconds = ms / 1000
+  if (seconds < 3600) return 'Same visit'
+  if (seconds < 86400) return `${Math.round(seconds / 3600)}h`
+  return `${Math.round(seconds / 86400)}d`
+}
+
+export function maskEmail(email: string | null): string {
+  if (!email) return 'Unknown'
+  const [local, domain] = email.split('@')
+  if (!domain) return email
+  const visible = local.slice(0, 3)
+  return `${visible}${'*'.repeat(Math.max(local.length - 3, 3))}@${domain}`
+}
