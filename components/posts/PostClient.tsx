@@ -8,6 +8,7 @@ import Link from "next/link";
 import { DbPost } from "@/types/posts";
 import { formatMoneyFull, formatNumber, timeAgo } from "@/lib/utils";
 import { metaFor } from "@/lib/metaFor";
+import { countryFlag } from "@/lib/countryFlag";
 
 const STATUS_STYLES: Record<string, string> = {
   posted: "badge-success",
@@ -23,7 +24,6 @@ const STATUS_LABELS: Record<string, string> = {
   archived: "○ Archived",
 };
 
-
 interface PostClientProps {
   posts: DbPost[];
   // real source(s) that drove sales for each post, keyed by post id —
@@ -34,9 +34,14 @@ interface PostClientProps {
   // DB (kept for historical data + as a webhook attribution fallback),
   // it's just never surfaced as if it were a fact.
   postSources: Record<string, string[]>;
+countryCountByPost: Record<string, Record<string, number>>;
 }
 
-export default function PostClient({ posts: initialPosts, postSources }: PostClientProps) {
+export default function PostClient({
+  posts: initialPosts,
+  postSources,
+  countryCountByPost,
+}: PostClientProps) {
   const router = useRouter();
   const [posts, setPosts] = useState<DbPost[]>(initialPosts);
   const [copiedId, setCopiedId] = useState<string | null>(null);
@@ -90,6 +95,7 @@ export default function PostClient({ posts: initialPosts, postSources }: PostCli
     router.refresh(); // re-syncs with server state (e.g. posted_at)
   }
 
+
   return (
     <AppShell>
       <div className="p-8">
@@ -108,7 +114,7 @@ export default function PostClient({ posts: initialPosts, postSources }: PostCli
         </div>
 
         {/* Filter tabs */}
-        <div className="flex gap-1 mb-6 bg-surface-muted p-1 rounded-xl w-fit border border-line">
+        {/* <div className="flex gap-1 mb-6 bg-surface-muted p-1 rounded-xl w-fit border border-line">
           {(["all", "ready", "posted"] as const).map((f) => (
             <button
               key={f}
@@ -126,7 +132,7 @@ export default function PostClient({ posts: initialPosts, postSources }: PostCli
                 : "✓ Posted"}
             </button>
           ))}
-        </div>
+        </div> */}
 
         {/* Post grid */}
         <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
@@ -142,23 +148,36 @@ export default function PostClient({ posts: initialPosts, postSources }: PostCli
                 : 0;
 
             const actualSources = postSources[post.id] ?? [];
+            const topCountries = Object.entries(countryCountByPost[post.id] ?? {})
+            .sort((a, b) => b[1] - a[1])
+            .slice(0, 4)
+            .map(([country]) => country);
 
             return (
               <div key={post.id} className="card p-4 flex flex-col">
-                {/* Top row — status + timestamp only. No declared channel
-                    badge anymore; the only channel info this page shows
-                    now is the real source, below, once there's a sale. */}
                 <div className="flex items-center justify-between gap-2 mb-3 flex-wrap">
-                  <span className={STATUS_STYLES[post.status]}>
-                    {STATUS_LABELS[post.status]}
-                  </span>
-                  <span className="text-[11px] text-muted">
+                  {topCountries.length > 0 && (
+                    <div className="flex items-center gap-1.5">
+                      <span className="text-sm text-muted normal-case font-normal">
+                        Top clicks:
+                      </span>
+                      <div className="flex gap-1 text-md">
+                        {topCountries.map((c, i) => (
+                          <span key={i} title={c}>
+                            {countryFlag(c)}
+                          </span>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  <span className="text-[12px] text-muted">
                     {timeAgo(post.created_at)}
                   </span>
                 </div>
 
                 {/* Content preview */}
-                <p className="text-body-sm text-body leading-relaxed line-clamp-3 mb-3">
+                <p className="text-body-sm leading-relaxed line-clamp-3 mb-3">
                   {post.content}
                 </p>
 
@@ -173,26 +192,37 @@ export default function PostClient({ posts: initialPosts, postSources }: PostCli
                         actualSources.map((src) => {
                           const meta = metaFor(src);
                           return (
-                            <span
-                              key={src}
-                              className="text-[10px] font-bold px-1.5 py-0.5 rounded"
-                            >
-                              {meta.name}
+                            <span key={src} className="">
+                              {meta.iconType === "direct" ? (
+                                <span>{meta.icon}</span>
+                              ) : meta.iconType === "favicon" ? (
+                                <img
+                                  src={meta.iconUrl}
+                                  alt=""
+                                  className="h-4 w-4 rounded-sm"
+                                />
+                              ) : (
+                                <span className="flex h-4 w-4 items-center justify-center rounded bg-surface-muted text-[10px] font-bold text-muted">
+                                  {meta.initials}
+                                </span>
+                              )}
                             </span>
                           );
                         })
                       ) : (
-                        <span className="text-muted">No sales yet</span>
+                        <span className="text-caption text-muted normal-case font-normal">
+                          No sales yet
+                        </span>
                       )}
                     </div>
 
                     {/* Revenue line */}
                     <div className="flex items-baseline justify-between mb-3">
-                      <span className="text-heading-sm text-ink tabular">
-                        {formatMoneyFull(post.revenue_cents / 100)}
-                      </span>
-                      <span className="text-caption text-muted normal-case font-normal">
-                        / Revenue earned
+                      <span className="text-2xl font-bold text-ink tabular">
+                        {formatMoneyFull(post.revenue_cents / 100)}{" "}
+                        <span className="text-caption text-muted normal-case font-normal">
+                          / Revenue earned
+                        </span>
                       </span>
                     </div>
 
@@ -217,15 +247,18 @@ export default function PostClient({ posts: initialPosts, postSources }: PostCli
                           highlight: conversionRate > 2,
                         },
                       ].map((s) => (
-                        <div key={s.label} className="text-center">
+                        <div
+                          key={s.label}
+                          className="text-center flex flex-col bg-surface-muted py-4 rounded-lg"
+                        >
                           <div
-                            className={`text-body-sm font-bold tabular ${
+                            className={`text-xl font-bold tabular ${
                               s.highlight ? "text-success" : "text-ink"
                             }`}
                           >
                             {s.value}
                           </div>
-                          <div className="text-[10px] text-muted mt-0.5">
+                          <div className="text-[12px] text-muted mt-0.5">
                             {s.label}
                           </div>
                         </div>

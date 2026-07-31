@@ -15,14 +15,14 @@
     /* Base surfaces */
     --bg: #FBFAF9;              /* page background */
     --surface: #FFFFFF;         /* cards, inputs */
-    --surface-muted: #F7F6F4;   /* subtle fills inside cards */
+    --surface-muted: #F9F9F9;   /* subtle fills inside cards */
     --border: #EEEEEE;          /* default hairline border */
     --border-strong: #9E9E9E;   /* emphasized border / dividers */
 
     /* Text */
     --ink: #1A1A1A;             /* headings, primary text */
     --body: #5B5B5B;            /* body / secondary text */
-    --muted: #9E9E9E;           /* placeholders, captions, disabled */
+    --muted: #747474;           /* placeholders, captions, disabled */
 
     /* Brand — primary CTA, links, active nav state.
        Stored as RGB channels (not hex) so Tailwind opacity modifiers

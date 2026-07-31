@@ -601,7 +601,7 @@ export default async function DashboardPage() {
 
             {event.post_id && (
               <Link
-                href={`/posts?highlight=${event.post_id}`}
+                href={`/posts/${event.post_id}`}
                 className="btn-ghost !py-1.5 !px-2.5 text-[12px] border border-line flex-shrink-0"
               >
                 View post

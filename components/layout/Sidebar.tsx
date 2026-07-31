@@ -38,7 +38,7 @@ export function Sidebar() {
       <div className="px-5 pt-6 pb-4">
         <div className="flex w-full items-center justify-center gap-2.5">
           <div>
-            <Image src={'./logo-icon.svg'} alt='sourcetruth-logo' width={40} height={40} />
+            <Image src={'/logo-icon.svg'} alt='sourcetruth-logo' width={40} height={40} />
           </div>
           <div className=''>
             <div className="font-bold text-[16px] text-[#0F172A] leading-none tracking-tight">SourceTruth</div>
