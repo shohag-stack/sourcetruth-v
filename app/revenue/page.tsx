@@ -86,6 +86,7 @@ export default async function RevenuePage() {
           country,
           device,
           first_source,
+          days_to_convert,
           os,
           browser,
           first_seen_at,
@@ -262,7 +263,6 @@ export default async function RevenuePage() {
                   const finalSrc = metaFor(conv.source)
                   const sameSource = (conv.first_source ?? conv.source) === (conv.source ?? null)
                   const returning = isReturning.get(conv.id) ?? false
-                  const convertTime = timeToConvert(conv.first_seen_at, conv.received_at)
 
                   return (
                     <div key={conv.id} className="p-4 border-b flex flex-wrap items-center gap-4">
@@ -330,7 +330,7 @@ export default async function RevenuePage() {
 
                       {/* Time to convert */}
                       <div className="text-body-sm text-body min-w-[80px]">
-                        {convertTime ?? <span className="text-muted">—</span>}
+                        {conv.days_to_convert ?? <span className="text-muted">—</span>}
                       </div>
 
                       {/* When */}

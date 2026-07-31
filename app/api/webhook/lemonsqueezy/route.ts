@@ -124,9 +124,11 @@ export async function POST(request: Request) {
   // for received_at below so the two stay consistent with each other. ──
   const receivedAt = new Date();
   const daysToConvert = firstSeenAt
-    ? Math.max(
-        0,
-        (receivedAt.getTime() - new Date(firstSeenAt).getTime()) / 86_400_000,
+    ? Math.round(
+        Math.max(
+          0,
+          (receivedAt.getTime() - new Date(firstSeenAt).getTime()) / 86_400_000,
+        ),
       )
     : null;
 
