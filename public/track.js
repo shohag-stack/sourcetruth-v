@@ -1,6 +1,6 @@
 (function () {
   const STORAGE_KEY = "st_ref"; // post-level attribution — SourceTruth's own feature, unchanged behavior
-  const TOUCH_KEY = "st_touch"; // NEW — general first-touch record, for every visitor, DataFast-style
+  const TOUCH_KEY = "st_touch"; // general first-touch record, for every visitor, DataFast-style
   const SESSION_KEY = "st_session_id";
   const THIRTY_DAYS = 30 * 24 * 60 * 60 * 1000;
   const ORIGIN = "https://sourcetruth-v.vercel.app";
@@ -8,11 +8,17 @@
     document.currentScript?.getAttribute("data-site") || window.ST_SITE_KEY;
 
   // ── Session ID ──────────────────────────────────────────────
+  // isNewSession also drives touchpoint counting below: a "touchpoint"
+  // is one distinct session (sessionStorage-scoped, so a fresh tab or a
+  // return visit after the tab closed counts; repeat pageviews within
+  // the same tab session do not).
   let sessionId = sessionStorage.getItem(SESSION_KEY);
+  let isNewSession = false;
   if (!sessionId) {
     sessionId =
       Math.random().toString(36).substring(2) + Date.now().toString(36);
     sessionStorage.setItem(SESSION_KEY, sessionId);
+    isNewSession = true;
   }
 
   function parseReferrerSource(referrer) {
@@ -53,7 +59,7 @@
     return { device, browser, os };
   }
 
-  // ── NEW: general first-touch record, DataFast-style ─────────
+  // ── General first-touch record, DataFast-style ───────────────
   // Set ONCE per visitor (never overwritten), so first_seen_at gives a
   // real "time to convert" and source/device/os/browser reflect how
   // they ACTUALLY first found the site. This exists for EVERY visitor,
@@ -79,7 +85,17 @@
       browser: browser,
       os: os,
       first_seen_at: Date.now(),
+      touchpoints: 1, // this visit is their first touchpoint
     };
+    localStorage.setItem(TOUCH_KEY, JSON.stringify(touch));
+  } else if (isNewSession) {
+    // Returning visitor, new session — one more touchpoint before they
+    // (maybe) convert. Backfill touchpoints for anyone whose record was
+    // written before this field existed.
+    touch.touchpoints = (touch.touchpoints || 1) + 1;
+    localStorage.setItem(TOUCH_KEY, JSON.stringify(touch));
+  } else if (!touch.touchpoints) {
+    touch.touchpoints = 1;
     localStorage.setItem(TOUCH_KEY, JSON.stringify(touch));
   }
 
@@ -200,7 +216,8 @@
   // on their purchase. That's the actual gap vs. DataFast — they
   // attribute every visitor, not just ones who clicked a special link.
   // Now: st_ref/st_source (post-level) only attach when a slug exists,
-  // but device/os/browser/first_seen ALWAYS attach, for every visitor.
+  // but device/os/browser/first_seen/touchpoints ALWAYS attach, for
+  // every visitor.
   const LS_LINK_PATTERN = /lemonsqueezy\.com\/(checkout|buy)/i;
 
   function isLemonSqueezyLink(href) {
@@ -256,9 +273,12 @@
             "checkout[custom][st_first_seen]",
             String(t.first_seen_at),
           );
+          url.searchParams.set(
+            "checkout[custom][st_touchpoints]",
+            String(t.touchpoints || 1),
+          );
         }
 
-        // NEW
         if (t.country) {
           url.searchParams.set("checkout[custom][st_country]", t.country);
         }

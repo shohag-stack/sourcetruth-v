@@ -29,10 +29,10 @@ function SourceIcon({ meta }: { meta: ReturnType<typeof metaFor> }) {
     return <span>{meta.icon}</span>
   }
   if (meta.iconType === 'favicon') {
-    return <img src={meta.iconUrl} alt="" className="h-3.5 w-3.5 rounded-sm" />
+    return <img src={meta.iconUrl} alt="" className="h-3.5 w-3.5" />
   }
   return (
-    <span className="flex h-3.5 w-3.5 items-center justify-center rounded bg-surface-muted text-[9px] font-bold text-muted">
+    <span className="flex h-3.5 w-3.5 items-center justify-center text-[12px] font-bold text-muted">
       {meta.initials}
     </span>
   )
@@ -40,7 +40,7 @@ function SourceIcon({ meta }: { meta: ReturnType<typeof metaFor> }) {
 
 function SourceBadge({ meta }: { meta: ReturnType<typeof metaFor> }) {
   return (
-    <span className="inline-flex items-center gap-1 px-2 py-1 rounded-lg text-[11px] font-semibold bg-surface-muted text-ink">
+    <span className="inline-flex items-center gap-1 px-2 py-1 text-[11px] font-semibold text-ink">
       <SourceIcon meta={meta} /> {meta.name}
     </span>
   )
@@ -302,13 +302,13 @@ export default async function RevenuePage() {
                           <SourceBadge meta={firstSrc} />
                           {!sameSource && (
                             <>
-                              <span className="text-muted text-[11px]">→</span>
+                              <span className="text-muted text-[12px]">→</span>
                               <SourceBadge meta={finalSrc} />
                             </>
                           )}
                         </div>
-                        <div className="text-[10px] text-muted normal-case font-normal mt-1">
-                          {sameSource ? 'Landed & purchased here' : 'Landed here, purchased there'}
+                        <div className="text-[12px] text-muted normal-case font-normal mt-1">
+                          {sameSource ? 'Landed & purchased here' : 'Landed → purchased'}
                         </div>
                         {post?.content && (
                           <p className="text-[11px] text-success font-medium truncate max-w-[180px] mt-1" title={post.content}>

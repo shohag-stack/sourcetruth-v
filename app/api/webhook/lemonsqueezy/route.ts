@@ -69,6 +69,12 @@ export async function POST(request: Request) {
   const stCountry: string | undefined = customData.st_country;
   const stCity: string | undefined = customData.st_city;
 
+  // General visit/session count leading up to this conversion — sent
+  // by track.js as of the update that also fixed the missing city field.
+  // Defaults to 1 (this visit) if somehow absent, since every conversion
+  // implies at least one touchpoint.
+  const stTouchpoints: string | undefined = customData.st_touchpoints;
+
   let post: { id: string; channel: string | null; slug: string } | null = null;
 
   if (stRef) {
@@ -113,6 +119,17 @@ export async function POST(request: Request) {
   const conversionSource = stCurrentSource ?? stClickSource ?? post?.channel ?? visitor?.last_source ?? null;
   const firstSource = stFirstSource ?? visitor?.first_source ?? (post ? post.channel : null);
 
+  // ── days_to_convert — computed here at insert time so it's stored,
+  // not derived on every page render. Pinned to the same "now" we use
+  // for received_at below so the two stay consistent with each other. ──
+  const receivedAt = new Date();
+  const daysToConvert = firstSeenAt
+    ? Math.max(
+        0,
+        (receivedAt.getTime() - new Date(firstSeenAt).getTime()) / 86_400_000,
+      )
+    : null;
+
   const { error } = await supabase.from("conversions").insert({
     user_id: conn.user_id,
     site_id: conn.site_id,
@@ -131,7 +148,11 @@ export async function POST(request: Request) {
     os: stOs ?? null,
     browser: stBrowser ?? null,
     first_seen_at: firstSeenAt,
+    received_at: receivedAt.toISOString(),
+    days_to_convert: daysToConvert,
     country: stCountry ?? attrs.user_country ?? null,
+    city: stCity ?? null,
+    touchpoints: stTouchpoints ? Number(stTouchpoints) : 1,
     raw_payload: payload,
   });
 
