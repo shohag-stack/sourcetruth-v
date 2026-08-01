@@ -2,6 +2,7 @@
 import PostClient from "@/components/posts/PostClient";
 import { createClient } from "@/utils/supabase/server";
 import { DbPost } from "@/types/posts";
+import { AppShell } from "@/components/layout/AppShell";
 
 export default async function PostsPage() {
   const supabase = await createClient();
@@ -53,10 +54,12 @@ export default async function PostsPage() {
   });
 
   return (
-    <PostClient
-      posts={postRows}
-      postSources={postSources}
-      countryCountByPost={countryCountByPost}
-    />
+    <AppShell>
+      <PostClient
+        posts={postRows}
+        postSources={postSources}
+        countryCountByPost={countryCountByPost}
+      />
+    </AppShell>
   );
 }

@@ -1,7 +1,7 @@
 'use client'
 import Link from 'next/link'
 import { usePathname, useRouter } from 'next/navigation'
-import { cn } from '@/lib/utils'
+import { cn, formatMoneyFull, trendLabel } from '@/lib/utils'
 import Image from 'next/image'
 import { createClient } from '@/utils/supabase/client'
 
@@ -19,7 +19,21 @@ const NAV_BOTTOM = [
   { href: '/settings', label: 'Settings', icon: '⚙' },
 ]
 
-export function Sidebar() {
+// Provided by AppShell (fetched server-side, no client round trip / no
+// loading-skeleton flash). Exported so AppShell can share the same type.
+export type SidebarData = {
+  name: string
+  // NOTE: no subscriptions/billing table or user_metadata.plan field
+  // exists anywhere in the code I've seen, so there's no real source
+  // for plan yet. AppShell falls back to "Free Plan" rather than a
+  // hardcoded, possibly-wrong "Pro Plan" — swap for a real lookup
+  // (user_metadata.plan, a subscriptions table, etc.) once one exists.
+  plan: string
+  revenueCents: number
+  growthPct: number
+}
+
+export function Sidebar({ data }: { data: SidebarData | null }) {
   const pathname = usePathname()
   const router = useRouter()
   const isActive = (href: string) =>
@@ -95,18 +109,33 @@ export function Sidebar() {
         </button>
       </nav>
 
+      {/* Revenue this month — real number, fetched server-side by
+          AppShell and passed down. No client fetch, no loading flash. */}
       <div className="mx-3 mb-3 p-3.5 rounded-xl bg-[#F8F9FC] border border-[#E8ECF2]">
         <div className="text-[11px] text-[#94A3B8] mb-1">Revenue this month</div>
-        <div className="text-lg font-bold text-[#0F172A] tabular">$13,170</div>
-        <div className="text-[11px] text-[#10B981] font-medium mt-0.5">↑ 23.4% vs last month</div>
+        <div className="text-lg font-bold text-[#0F172A] tabular">
+          {formatMoneyFull((data?.revenueCents ?? 0) / 100)}
+        </div>
+        <div
+          className="text-[11px] font-medium mt-0.5"
+          style={{ color: (data?.growthPct ?? 0) >= 0 ? '#10B981' : '#EF4444' }}
+        >
+          {trendLabel(data?.growthPct ?? 0)} vs last month
+        </div>
       </div>
 
       <div className="px-4 pb-5 pt-2 border-t border-[#E8ECF2]">
         <div className="flex items-center gap-2.5 mt-3">
-          <div className="w-7 h-7 rounded-full gradient-brand flex items-center justify-center text-white text-xs font-bold flex-shrink-0">R</div>
+          <div className="w-7 h-7 rounded-full gradient-brand flex items-center justify-center text-white text-xs font-bold flex-shrink-0">
+            {(data?.name ?? '?').charAt(0).toUpperCase()}
+          </div>
           <div className="flex-1 min-w-0">
-            <div className="text-[13px] font-medium text-[#0F172A] truncate">Raysa Studio</div>
-            <div className="text-[11px] text-[#94A3B8] truncate">Pro Plan</div>
+            <div className="text-[13px] font-medium text-[#0F172A] truncate">
+              {data?.name ?? 'Account'}
+            </div>
+            <div className="text-[11px] text-[#94A3B8] truncate">
+              {data?.plan ?? 'Free Plan'}
+            </div>
           </div>
         </div>
       </div>

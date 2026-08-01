@@ -1,7 +1,5 @@
 "use client";
 // components/posts/PostClient.tsx
-
-import { AppShell } from "@/components/layout/AppShell";
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
@@ -97,7 +95,6 @@ export default function PostClient({
 
 
   return (
-    <AppShell>
       <div className="p-8">
         {/* Header */}
         <div className="flex items-center justify-between mb-6">
@@ -339,6 +336,5 @@ export default function PostClient({
           </div>
         )}
       </div>
-    </AppShell>
   );
 }
