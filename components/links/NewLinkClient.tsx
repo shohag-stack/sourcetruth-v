@@ -1,7 +1,5 @@
 'use client'
 // components/links/NewLinkClient.tsx
-
-import { AppShell } from '@/components/layout/AppShell'
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { PLATFORM_META, SocialChannel } from '@/lib/dummy-data'
@@ -75,7 +73,6 @@ export default function NewLinkClient({ sites }: NewLinkClientProps) {
   }
 
   return (
-    <AppShell>
       <div className="p-8 max-w-4xl mx-auto">
         <div className="mb-8">
           <h1 className="text-[22px] font-bold text-[#0F172A] mb-0.5">New Post</h1>
@@ -234,6 +231,5 @@ export default function NewLinkClient({ sites }: NewLinkClientProps) {
           </div>
         </div>
       </div>
-    </AppShell>
   )
 }
