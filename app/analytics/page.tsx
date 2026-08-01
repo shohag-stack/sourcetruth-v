@@ -1,7 +1,6 @@
 // app/analytics/page.tsx
 import { AppShell } from "@/components/layout/AppShell";
 import { RevenueAreaChart } from "@/components/charts/RevenueAreaChart";
-import { PLATFORM_META } from "@/lib/dummy-data.tsX"; // static branding lookup only
 import { formatMoneyFull, formatNumber, trendLabel } from "@/lib/utils";
 import { createClient } from "@/utils/supabase/server";
 import { redirect } from "next/navigation";
