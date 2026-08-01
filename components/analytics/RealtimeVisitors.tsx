@@ -2,6 +2,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { AnimatePresence, motion } from "framer-motion";
 import { countryFlag } from "@/lib/countryFlag";
 import { metaFor } from "@/lib/metaFor";
 
@@ -48,7 +49,25 @@ const DEVICE_ICON: Record<string, string> = { desktop: "🖥️", mobile: "📱"
 const OS_LABEL: Record<string, string> = { mac: "Mac OS", windows: "Windows", ios: "iOS", android: "Android", other: "Unknown OS" };
 const BROWSER_LABEL: Record<string, string> = { chrome: "Chrome", safari: "Safari", firefox: "Firefox", other: "Unknown browser" };
 
+// Full country name from a 2-letter code, using the browser's built-in
+// locale data — no lookup table or new dependency needed. Falls back to
+// nothing if Intl.DisplayNames isn't available (very old browsers).
+const regionNames =
+  typeof Intl !== "undefined" && "DisplayNames" in Intl
+    ? new Intl.DisplayNames(["en"], { type: "region" })
+    : null;
+
+function countryName(code: string | null): string | null {
+  if (!code || !regionNames) return null;
+  try {
+    return regionNames.of(code.toUpperCase()) ?? null;
+  } catch {
+    return null;
+  }
+}
+
 type Visitor = {
+  id: string;
   sessionId: string;
   path: string | null;
   country: string | null;
@@ -58,6 +77,7 @@ type Visitor = {
   referrer: string | null;
   visitedAt: string;
   isNewVisitor: boolean;
+  pageviewsThisSession: number;
 };
 
 function sourceFromReferrer(referrer: string | null): string {
@@ -74,6 +94,20 @@ const POLL_MS = 10_000;
 export function RealtimeVisitors() {
   const [visitors, setVisitors] = useState<Visitor[] | null>(null);
   const [errored, setErrored] = useState(false);
+  // Ticks every second purely so "time on page" reads live between data
+  // polls — doesn't trigger any refetch, just a re-render for the math.
+  const [now, setNow] = useState(() => Date.now());
+
+  useEffect(() => {
+    const tick = setInterval(() => setNow(Date.now()), 1000);
+    return () => clearInterval(tick);
+  }, []);
+
+  function elapsedOnPage(visitedAt: string): string {
+    const seconds = Math.max(0, Math.round((now - new Date(visitedAt).getTime()) / 1000));
+    if (seconds < 60) return `${seconds}s`;
+    return `${Math.floor(seconds / 60)}m ${seconds % 60}s`;
+  }
 
   useEffect(() => {
     let cancelled = false;
@@ -107,7 +141,7 @@ export function RealtimeVisitors() {
         <h2 className="text-heading-sm text-ink">Realtime Visitors</h2>
       </div>
       <p className="text-body-sm text-muted mb-4">
-        Follow active sessions as they move through your site, from landing page to pricing page.
+        The latest pages viewed on your site, live.
       </p>
 
       {visitors === null ? (
@@ -119,60 +153,74 @@ export function RealtimeVisitors() {
       ) : visitors.length === 0 ? (
         <p className="text-body-sm text-muted py-6 text-center">No one's on your site right now.</p>
       ) : (
-        <div className="divide-y divide-line">
-          {visitors.map((v) => {
-            const identity = identityFor(v.sessionId);
-            const source = metaFor(sourceFromReferrer(v.referrer));
-            const deviceTitle = [
-              v.os && (OS_LABEL[v.os] ?? v.os),
-              v.browser && (BROWSER_LABEL[v.browser] ?? v.browser),
-            ]
-              .filter(Boolean)
-              .join(" · ");
+        <div className="relative">
+          <AnimatePresence initial={false} mode="popLayout">
+            {visitors.map((v) => {
+              const identity = identityFor(v.sessionId);
+              const source = metaFor(sourceFromReferrer(v.referrer));
 
-            return (
-              <div key={v.sessionId} className="flex items-center gap-3 py-3 flex-wrap">
-                <div className="relative flex-shrink-0">
-                  <div
-                    className="w-9 h-9 rounded-full flex items-center justify-center text-xs font-bold text-white"
-                    style={{ backgroundColor: identity.color }}
-                  >
-                    {identity.initials}
+              return (
+                <motion.div
+                  key={v.id}
+                  layout
+                  initial={{ opacity: 0, y: -16, height: 0 }}
+                  animate={{ opacity: 1, y: 0, height: "auto" }}
+                  exit={{ opacity: 0, height: 0 }}
+                  transition={{ duration: 0.35, ease: "easeInOut" }}
+                  className="flex items-center gap-3 py-3 flex-wrap border-b border-line last:border-0 overflow-hidden"
+                >
+                  <div className="relative flex-shrink-0">
+                    <div
+                      className="w-9 h-9 rounded-full flex items-center justify-center text-xs font-bold text-white"
+                      style={{ backgroundColor: identity.color }}
+                    >
+                      {identity.initials}
+                    </div>
+                    {v.country && (
+                      <span className="absolute -bottom-1 -right-1 text-[11px] leading-none">
+                        {countryFlag(v.country)}
+                      </span>
+                    )}
                   </div>
-                  {v.country && (
-                    <span className="absolute -bottom-1 -right-1 text-[11px] leading-none">
-                      {countryFlag(v.country)}
-                    </span>
-                  )}
-                </div>
 
-                <div className="flex items-center gap-2 min-w-0 flex-1">
-                  <span className="text-body-sm font-semibold text-ink truncate">{identity.name}</span>
-                  {v.isNewVisitor && <span className="badge-primary-tint">New</span>}
-                  <span className="flex items-center gap-1 text-caption font-medium text-success normal-case flex-shrink-0">
-                    <span className="w-1.5 h-1.5 rounded-full bg-success animate-pulse" /> Live
-                  </span>
-                  <span className="text-muted flex-shrink-0" title={deviceTitle || undefined}>
-                    {DEVICE_ICON[v.device ?? ""] ?? "●"}
-                  </span>
-                  <code className="text-caption text-muted normal-case font-mono truncate">
-                    {v.path ?? "/"}
-                  </code>
-                </div>
+                  <div className="flex flex-col min-w-0 flex-1 gap-0.5">
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <span className="text-body-sm font-semibold text-ink truncate">{identity.name}</span>
+                      {v.isNewVisitor && <span className="badge-primary-tint">New</span>}
+                      <span className="flex items-center gap-1 text-caption font-medium text-success normal-case flex-shrink-0">
+                        <span className="w-1.5 h-1.5 rounded-full bg-success animate-pulse" /> Live
+                      </span>
+                    </div>
 
-                <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full border border-line text-body-sm font-medium text-ink flex-shrink-0">
-                  {source.iconType === "favicon" ? (
-                    <img src={source.iconUrl} alt="" className="h-3.5 w-3.5" />
-                  ) : source.iconType === "direct" ? (
-                    <span>{source.icon}</span>
-                  ) : (
-                    <span className="text-[10px] font-bold">{source.initials}</span>
-                  )}
-                  {source.name}
-                </span>
-              </div>
-            );
-          })}
+                    <div className="flex items-center gap-2 text-caption text-muted normal-case font-normal flex-wrap">
+                      <span>{DEVICE_ICON[v.device ?? ""] ?? "●"} {v.device ?? "unknown"}</span>
+                      {v.os && <span>{OS_LABEL[v.os] ?? v.os}</span>}
+                      {v.browser && <span>{BROWSER_LABEL[v.browser] ?? v.browser}</span>}
+                      <span>⏱ {elapsedOnPage(v.visitedAt)} on page</span>
+                      {v.pageviewsThisSession > 1 && (
+                        <span>👣 {v.pageviewsThisSession} pages this session</span>
+                      )}
+                    </div>
+                  </div>
+
+                  <code className="text-xs font-bold text-muted truncate">
+                      {v.path ?? "/"}
+                    </code>
+
+                  <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full border border-line text-body-sm font-medium text-ink flex-shrink-0">
+                    {source.iconType === "favicon" ? (
+                      <img src={source.iconUrl} alt="" className="h-3.5 w-3.5" />
+                    ) : source.iconType === "direct" ? (
+                      <span>{source.icon}</span>
+                    ) : (
+                      <span className="text-[10px] font-bold">{source.initials}</span>
+                    )}
+                    {source.name}
+                  </span>
+                </motion.div>
+              );
+            })}
+          </AnimatePresence>
         </div>
       )}
     </div>
