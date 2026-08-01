@@ -1,4 +1,4 @@
-import { DIRECT_META, PLATFORM_META } from './dummy-data.ts'
+import { DIRECT_META, PLATFORM_META } from './dummy-data'
 
 function hostnameFromSource(source: string) {
   try {
