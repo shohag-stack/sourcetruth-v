@@ -33,7 +33,7 @@ export default async function DashboardPage() {
   const since60 = new Date(
     now.getTime() - 60 * 24 * 60 * 60 * 1000,
   ).toISOString();
-  const since5min = new Date(now.getTime() - 5 * 60 * 1000).toISOString();
+  const since5min = new Date(now.getTime() - 1 * 60 * 1000).toISOString();
 
   const { data: sites } = await supabase
     .from("sites")
