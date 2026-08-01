@@ -3,7 +3,8 @@
 
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { PAYMENT_META, PaymentProvider } from '@/lib/dummy-data'
+import { PROVIDER_META } from '@/lib/provider'
+import {PaymentProvider} from '@/lib/dummy-data'
 
 interface Site {
   id: string
@@ -22,7 +23,7 @@ interface ConnectClientProps {
   connections: Connection[]
 }
 
-const PROVIDERS: PaymentProvider[] = ['lemon_squeezy', 'stripe', 'paddle', 'gumroad', 'woocommerce']
+const PROVIDERS: PaymentProvider[] = ['lemon_squeezy', 'stripe', 'paddle', 'woocommerce']
 
 export default function ConnectClient({ site, connections }: ConnectClientProps) {
   const router = useRouter()
@@ -102,13 +103,13 @@ export default function ConnectClient({ site, connections }: ConnectClientProps)
         <h2 className="text-caption text-muted uppercase tracking-widest mb-4">Payment Providers</h2>
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
           {PROVIDERS.map(provider => {
-            const meta = PAYMENT_META[provider]
+            const meta = PROVIDER_META[provider]
             const conn = connections.find(c => c.provider === provider)
             const isLs = provider === 'lemon_squeezy'
 
             return (
               <div key={provider} className="card p-5 flex flex-col items-center text-center">
-                <div className="w-12 h-12 rounded-xl bg-surface-muted flex items-center justify-center text-2xl mb-3">
+                <div className="w-24 h-14 flex items-center justify-center text-2xl mb-3">
                   {meta.icon}
                 </div>
                 <div className="font-medium text-ink mb-1">{meta.name}</div>

@@ -1,4 +1,5 @@
 import { DbPost } from "@/types/posts"
+import ls from '@/public/src/images/ls.svg'
 // lib/dummy-data.ts
 
 // types/post.ts
@@ -252,13 +253,6 @@ export const PLATFORM_META: Record<SocialChannel, { name: string; color: string;
   bluesky: { name: 'Bluesky', color: '#0085FF', bgColor: '#EFF6FF', icon: '🦋' },
 }
 
-export const PAYMENT_META: Record<PaymentProvider, { name: string; color: string; icon: string }> = {
-  lemon_squeezy: { name: 'Lemon Squeezy', color: '#FFC233', icon: '🍋' },
-  stripe: { name: 'Stripe', color: '#635BFF', icon: '◈' },
-  paddle: { name: 'Paddle', color: '#0EA5E9', icon: '◉' },
-  gumroad: { name: 'Gumroad', color: '#FF90E8', icon: '◆' },
-  woocommerce: { name: 'WooCommerce', color: '#7F54B3', icon: '◇' },
-}
 
 /**
  * ── PATCH NOTES (design-only additions) ──────────────────────────────

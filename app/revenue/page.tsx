@@ -6,20 +6,15 @@ import { createClient } from '@/utils/supabase/server'
 import { redirect } from 'next/navigation'
 import { formatMoney, maskEmail, timeAgo, timeToConvert } from '@/lib/utils'
 import { metaFor } from '@/lib/metaFor'
+import { BROWSER_ICON, BROWSER_LABEL, DEVICE_ICON, OS_ICON, OS_LABEL } from '@/lib/analytics'
+import { Monitor } from 'lucide-react'
+import { PROVIDER_META } from '@/lib/provider'
 
-const PROVIDER_META: Record<string, { name: string; icon: string }> = {
-  lemon_squeezy: { name: 'Lemon Squeezy', icon: '🍋' },
-  stripe: { name: 'Stripe', icon: '◈' },
-  paddle: { name: 'Paddle', icon: '◉' },
-  gumroad: { name: 'Gumroad', icon: '◆' },
-  woocommerce: { name: 'WooCommerce', icon: '◇' },
-}
-
-const DEVICE_ICON: Record<string, string> = { desktop: '🖥️', mobile: '📱', tablet: '📱' }
-const OS_ICON: Record<string, string> = { mac: '', windows: '🪟', ios: '', android: '🤖' }
-const OS_LABEL: Record<string, string> = { mac: 'Mac OS', windows: 'Windows', ios: 'iOS', android: 'Android', other: 'Unknown OS' }
-const BROWSER_ICON: Record<string, string> = { chrome: '🌐', safari: '🧭', firefox: '🦊' }
-const BROWSER_LABEL: Record<string, string> = { chrome: 'Chrome', safari: 'Safari', firefox: 'Firefox', other: 'Unknown browser' }
+// Shared column template — used by both the header row and every data
+// row so widths can never drift between them. Do not set per-cell
+// min-w / flex-1 / ml-auto on individual cells below; the grid template
+// is the single source of truth for column sizing.
+const GRID_COLS ='md:grid md:grid-cols-[minmax(220px,1.5fr)_minmax(190px,1fr)_minmax(140px,0.9fr)_minmax(70px,0.5fr)_minmax(80px,0.5fr)_minmax(80px,0.5fr)] md:gap-4'
 
 // days_to_convert is now a rounded integer stored at insert time (see
 // the webhook), so we lost the "Same visit" / "6h" granularity the old
@@ -32,13 +27,13 @@ const BROWSER_LABEL: Record<string, string> = { chrome: 'Chrome', safari: 'Safar
 // as the Dashboard's Recent Sales card, kept in sync with it.
 function SourceIcon({ meta }: { meta: ReturnType<typeof metaFor> }) {
   if (meta.iconType === 'direct') {
-    return <span>{meta.icon}</span>
+    return <span className='w-4 h-4' >{meta.icon}</span>
   }
   if (meta.iconType === 'favicon') {
-    return <img src={meta.iconUrl} alt="" className="h-3.5 w-3.5" />
+    return <img src={meta.iconUrl} alt="" className="h-4 w-4" />
   }
   return (
-    <span className="flex h-3.5 w-3.5 items-center justify-center text-[12px] font-bold text-muted">
+    <span className="flex h-4 w-4 items-center justify-center text-[14px] font-bold text-muted">
       {meta.initials}
     </span>
   )
@@ -46,7 +41,7 @@ function SourceIcon({ meta }: { meta: ReturnType<typeof metaFor> }) {
 
 function SourceBadge({ meta }: { meta: ReturnType<typeof metaFor> }) {
   return (
-    <span className="inline-flex items-center gap-1 px-2 py-1 text-[11px] font-semibold text-ink">
+    <span className="inline-flex items-center gap-1 px-2 py-1 text-[12px] font-semibold text-ink">
       <SourceIcon meta={meta} /> {meta.name}
     </span>
   )
@@ -117,7 +112,8 @@ export default async function RevenuePage() {
   // this fetched set counts as "new". Approximate beyond the 100-row
   // window, but correct for anything visible on this page. ──
   const firstSeenEmail = new Set<string>()
-  const isReturning = new Map<string, boolean>();[...rows].reverse().forEach(c => {
+  const isReturning = new Map<string, boolean>()
+  ;[...rows].reverse().forEach(c => {
     if (!c.customer_email) return
     isReturning.set(c.id, firstSeenEmail.has(c.customer_email))
     firstSeenEmail.add(c.customer_email)
@@ -254,13 +250,13 @@ export default async function RevenuePage() {
               </div>
             ) : (
               <div className="space-y-3 bg-white rounded-xl pt-4 border border-separate">
-                <div className="hidden md:flex items-center gap-4 px-4 text-caption font-semibold text-muted normal-case tracking-wide border-b pb-4">
-                  <div className="min-w-[220px] flex-1">Customer</div>
-                  <div className="min-w-[190px]">Journey</div>
-                  <div className="min-w-[140px]">Provider</div>
-                  <div className="min-w-[70px]">Amount</div>
-                  <div className="min-w-[80px]">Converted</div>
-                  <div className="min-w-[80px] text-right ml-auto">When</div>
+                <div className={`hidden ${GRID_COLS} px-4 text-caption font-semibold text-muted normal-case tracking-wide border-b pb-4`}>
+                  <div>Customer</div>
+                  <div>Journey</div>
+                  <div>Provider</div>
+                  <div>Amount</div>
+                  <div>Converted</div>
+                  <div className="text-right">When</div>
                 </div>
                 {rows.map(conv => {
                   const providerMeta = PROVIDER_META[conv.provider] ?? { name: conv.provider, icon: '◈' }
@@ -272,12 +268,12 @@ export default async function RevenuePage() {
                   const convertLabel = timeToConvert(conv.first_seen_at, conv.received_at)
 
                   return (
-                    <div key={conv.id} className="p-4 border-b flex flex-wrap items-center gap-4">
+                    <div key={conv.id} className={`p-4 border-b flex flex-wrap items-center gap-4 ${GRID_COLS}`}>
 
                       {/* Customer + device row — links to the full journey page */}
                       <Link
                         href={`/revenue/customers/${encodeURIComponent(conv.customer_email ?? '')}`}
-                        className="flex items-center gap-3 min-w-[220px] flex-1 group"
+                        className="flex items-center gap-3 group"
                       >
                         <div className="w-10 h-10 rounded-full bg-surface-muted flex items-center justify-center text-sm font-bold text-body flex-shrink-0">
                           {(conv.customer_email ?? '?').charAt(0).toUpperCase()}
@@ -293,9 +289,21 @@ export default async function RevenuePage() {
                           </div>
                           <div className="flex items-center gap-2 text-caption text-muted normal-case font-normal mt-0.5 flex-wrap">
                             {conv.country && <span>{countryFlag(conv.country)} {conv.country}</span>}
-                            {conv.device && <span>{DEVICE_ICON[conv.device] ?? '●'} {conv.device}</span>}
-                            {conv.os && <span title={OS_LABEL[conv.os] ?? conv.os}>{OS_ICON[conv.os] ?? ''} {OS_LABEL[conv.os] ?? conv.os}</span>}
-                            {conv.browser && <span>{BROWSER_ICON[conv.browser] ?? '○'} {BROWSER_LABEL[conv.browser] ?? conv.browser}</span>}
+                            {conv.device && (
+                              <span className="inline-flex items-center gap-1">
+                                {DEVICE_ICON[conv.device] ?? <Monitor className="h-3.5 w-3.5" />} {conv.device}
+                              </span>
+                            )}
+                            {conv.os && (
+                              <span className="inline-flex items-center gap-1" title={OS_LABEL[conv.os] ?? conv.os}>
+                                {OS_ICON[conv.os] ?? null} {OS_LABEL[conv.os] ?? conv.os}
+                              </span>
+                            )}
+                            {conv.browser && (
+                              <span className="inline-flex items-center gap-1">
+                                {BROWSER_ICON[conv.browser] ?? null} {BROWSER_LABEL[conv.browser] ?? conv.browser}
+                              </span>
+                            )}
                           </div>
                         </div>
                       </Link>
@@ -304,7 +312,7 @@ export default async function RevenuePage() {
                           bought — this pair is SourceTruth's own differentiator
                           on top of the DataFast-style fields. Collapses to a
                           single badge when the two sources are the same. */}
-                      <div className="min-w-[190px]">
+                      <div>
                         <div className="flex items-center gap-1 flex-wrap">
                           <SourceBadge meta={firstSrc} />
                           {!sameSource && (
@@ -314,9 +322,9 @@ export default async function RevenuePage() {
                             </>
                           )}
                         </div>
-                        <div className="text-[12px] text-muted normal-case font-normal mt-1">
+                        {/* <div className="text-[12px] text-muted normal-case font-normal mt-1">
                           {sameSource ? 'Landed & purchased here' : 'Landed → purchased'}
-                        </div>
+                        </div> */}
                         {post?.content && (
                           <p className="text-[11px] text-success font-medium truncate max-w-[180px] mt-1" title={post.content}>
                             {post.content.slice(0, 40)}{post.content.length > 40 ? '…' : ''}
@@ -325,23 +333,23 @@ export default async function RevenuePage() {
                       </div>
 
                       {/* Provider + product */}
-                      <div className="min-w-[140px] text-body-sm text-body">
-                        <div>{providerMeta.icon} {providerMeta.name}</div>
+                      <div className="text-body-sm text-body">
+                        <div className="flex items-center gap-1.5 mb-3"><span className='w-3.5 h-3.5'> {providerMeta.icon} </span> {providerMeta.name}</div>
                         <div className="text-caption text-muted normal-case font-normal mt-0.5">{conv.product_name ?? '—'}</div>
                       </div>
 
                       {/* Amount */}
-                      <div className="text-body-sm font-bold text-success tabular min-w-[70px]">
+                      <div className="text-body-sm font-bold text-success tabular">
                         +{formatMoney(conv.amount_cents)}
                       </div>
 
                       {/* Time to convert */}
-                      <div className="text-body-sm text-body min-w-[80px]">
+                      <div className="text-body-sm text-body">
                         {convertLabel ?? <span className="text-muted">—</span>}
                       </div>
 
                       {/* When */}
-                      <div className="text-caption text-muted normal-case font-normal min-w-[80px] text-right ml-auto">
+                      <div className="text-caption text-muted normal-case font-normal text-right">
                         {timeAgo(conv.received_at)}
                       </div>
                     </div>

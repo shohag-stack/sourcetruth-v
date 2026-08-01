@@ -1,7 +1,7 @@
 'use client'
 // components/charts/RevenueAreaChart.tsx
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts'
-import { DUMMY_DAILY_REVENUE } from '@/lib/dummy-data'
+import { DUMMY_DAILY_REVENUE } from '@/lib/dummy-data.tsX'
 
 const CHANNELS = [
   { key: 'linkedin', color: '#0077B5' },
