@@ -9,6 +9,7 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { DateRangePicker } from "@/components/ui/DateRangePicker";
 import { getSince } from "@/lib/getSince";
+import { RealtimeVisitors } from "@/components/analytics/RealtimeVisitors";
 
 // ─── Helpers ──────────────────────────────────────────────────
 function formatDuration(seconds: number): string {
@@ -125,18 +126,37 @@ function bucketKey(date: Date, unit: BucketUnit): string {
 }
 
 function shortLabel(date: Date, unit: BucketUnit): string {
-  if (unit === "hour") return date.toLocaleTimeString("en-US", { hour: "numeric" });
-  if (unit === "month") return date.toLocaleDateString("en-US", { month: "short", year: "numeric" });
+  if (unit === "hour")
+    return date.toLocaleTimeString("en-US", { hour: "numeric" });
+  if (unit === "month")
+    return date.toLocaleDateString("en-US", {
+      month: "short",
+      year: "numeric",
+    });
   return date.toLocaleDateString("en-US", { month: "short", day: "numeric" });
 }
 
 function fullLabel(date: Date, unit: BucketUnit): string {
   if (unit === "hour") {
-    return date.toLocaleString("en-US", { weekday: "long", month: "long", day: "numeric", hour: "numeric" });
+    return date.toLocaleString("en-US", {
+      weekday: "long",
+      month: "long",
+      day: "numeric",
+      hour: "numeric",
+    });
   }
-  if (unit === "month") return date.toLocaleDateString("en-US", { month: "long", year: "numeric" });
-  if (unit === "week") return `Week of ${date.toLocaleDateString("en-US", { month: "long", day: "numeric" })}`;
-  return date.toLocaleDateString("en-US", { weekday: "long", day: "numeric", month: "long" });
+  if (unit === "month")
+    return date.toLocaleDateString("en-US", { month: "long", year: "numeric" });
+  if (unit === "week")
+    return `Week of ${date.toLocaleDateString("en-US", {
+      month: "long",
+      day: "numeric",
+    })}`;
+  return date.toLocaleDateString("en-US", {
+    weekday: "long",
+    day: "numeric",
+    month: "long",
+  });
 }
 
 function advance(date: Date, unit: BucketUnit, steps: number): Date {
@@ -222,10 +242,7 @@ export default async function TrafficAnalyticsPage({
 
   if (since) {
     pageviewsQuery = pageviewsQuery.gte("visited_at", since.toISOString());
-    conversionsQuery = conversionsQuery.gte(
-      "received_at",
-      since.toISOString(),
-    );
+    conversionsQuery = conversionsQuery.gte("received_at", since.toISOString());
   }
 
   const [{ data: pageviews }, { data: conversions }] = await Promise.all([
@@ -266,18 +283,26 @@ export default async function TrafficAnalyticsPage({
   const BOUNCE_DURATION_THRESHOLD_SECONDS = 10;
   const pageCountBySession = new Map<string, number>();
   rows.forEach((r) => {
-    pageCountBySession.set(r.session_id, (pageCountBySession.get(r.session_id) ?? 0) + 1);
+    pageCountBySession.set(
+      r.session_id,
+      (pageCountBySession.get(r.session_id) ?? 0) + 1,
+    );
   });
   let realBouncedCount = 0;
   uniqueSessions.forEach((sessionId) => {
     const pageCount = pageCountBySession.get(sessionId) ?? 0;
-    const totalDuration = (durationsPerSession.get(sessionId) ?? []).reduce((a, b) => a + b, 0);
+    const totalDuration = (durationsPerSession.get(sessionId) ?? []).reduce(
+      (a, b) => a + b,
+      0,
+    );
     if (pageCount <= 1 && totalDuration < BOUNCE_DURATION_THRESHOLD_SECONDS) {
       realBouncedCount += 1;
     }
   });
   const bounceRate =
-    totalVisitors > 0 ? Math.round((realBouncedCount / totalVisitors) * 100) : 0;
+    totalVisitors > 0
+      ? Math.round((realBouncedCount / totalVisitors) * 100)
+      : 0;
 
   // New visitors this period
   const newVisitors = rows.filter((r) => r.is_new_visitor).length;
@@ -390,7 +415,9 @@ export default async function TrafficAnalyticsPage({
       ...rows.map((r) => new Date(r.visited_at).getTime()),
       ...conversionRows.map((c) => new Date(c.received_at).getTime()),
     ];
-    const earliest = allTimestamps.length ? new Date(Math.min(...allTimestamps)) : now;
+    const earliest = allTimestamps.length
+      ? new Date(Math.min(...allTimestamps))
+      : now;
     const earliestBucketStart = truncate(earliest, unit);
     bucketStarts = [];
     let cursor = earliestBucketStart;
@@ -468,7 +495,9 @@ export default async function TrafficAnalyticsPage({
     const key = bucketKey(d, unit);
     const b = dayBuckets.get(key)!;
     const visitors = b.sessions.size;
-    const newVisitorsCount = Array.from(b.sessions.values()).filter(Boolean).length;
+    const newVisitorsCount = Array.from(b.sessions.values()).filter(
+      Boolean,
+    ).length;
     return {
       date: shortLabel(d, unit),
       fullDate: b.fullDate,
@@ -490,7 +519,11 @@ export default async function TrafficAnalyticsPage({
           <div>
             <h1 className="text-heading-lg text-ink mb-0.5">Analytics</h1>
             <p className="text-body-sm text-muted">
-              {site.domain} · {RANGE_PHRASE[range] === "all time" ? "All time" : `Last ${range}`} ·{" "}
+              {site.domain} ·{" "}
+              {RANGE_PHRASE[range] === "all time"
+                ? "All time"
+                : `Last ${range}`}{" "}
+              ·{" "}
               {totalPageviews === 0
                 ? "No data yet — make sure track.js is installed"
                 : `${formatNumber(totalPageviews)} pageviews recorded`}
@@ -540,6 +573,8 @@ export default async function TrafficAnalyticsPage({
             </div>
           ))}
         </div>
+
+        <RealtimeVisitors />
 
         {/* Visitors + Revenue combo chart, right beneath the stat cards */}
         <div className="card p-5 mb-6">
