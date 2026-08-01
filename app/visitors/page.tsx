@@ -10,6 +10,7 @@ import { redirect } from "next/navigation";
 import { DateRangePicker } from "@/components/ui/DateRangePicker";
 import { getSince } from "@/lib/getSince";
 import { RealtimeVisitors } from "@/components/analytics/RealtimeVisitors";
+import { metaFor } from "@/lib/metaFor";
 
 // ─── Helpers ──────────────────────────────────────────────────
 function formatDuration(seconds: number): string {
@@ -25,13 +26,40 @@ function formatNumber(n: number): string {
   return n.toString();
 }
 
+// Same hostname-extraction convention used by track.js and the
+// Realtime Visitors feed — internal referrer strings collapse to
+// "direct" if there's nothing there or it doesn't parse as a URL.
+function sourceFromReferrer(referrer: string | null): string {
+  if (!referrer) return "direct";
+  try {
+    return new URL(referrer).hostname.replace(/^www\./, "");
+  } catch {
+    return "direct";
+  }
+}
+
+// Renders whatever metaFor() gave us — direct icon, favicon image, or
+// initials fallback. Same pattern as Revenue/RealtimeVisitors so the
+// same source looks the same everywhere in the app.
+function SourceIcon({ meta }: { meta: ReturnType<typeof metaFor> }) {
+  if (meta.iconType === "direct") return <span>{meta.icon}</span>;
+  if (meta.iconType === "favicon") {
+    return <img src={meta.iconUrl} alt="" className="h-4 w-4 rounded-sm" />;
+  }
+  return (
+    <span className="flex h-4 w-4 items-center justify-center rounded bg-surface-muted text-[10px] font-bold text-muted">
+      {meta.initials}
+    </span>
+  );
+}
+
 // ─── Ranked list component ────────────────────────────────────
 function RankedList({
   title,
   rows,
 }: {
   title: string;
-  rows: { label: string; value: number; flag?: string }[];
+  rows: { label: string; value: number; flag?: string; icon?: React.ReactNode }[];
 }) {
   const max = rows[0]?.value ?? 1;
   return (
@@ -53,7 +81,7 @@ function RankedList({
                   style={{ width: `${pct}%` }}
                 />
                 <span className="relative text-body-sm text-ink flex items-center gap-2">
-                  {row.flag && <span>{row.flag}</span>}
+                  {row.icon ?? (row.flag && <span>{row.flag}</span>)}
                   {row.label}
                 </span>
                 <span className="relative text-body-sm text-body flex items-center gap-2 tabular">
@@ -227,10 +255,15 @@ export default async function TrafficAnalyticsPage({
   // ── Fetch all pageviews for this site ─────────────────────
   const since = getSince(range);
 
+  // NOTE: `referrer` added for the new Top Referrers card below — same
+  // assumption as Realtime Visitors: this column holds the raw referrer
+  // URL track.js posts to /api/pageview. If it's named differently (or
+  // doesn't exist), the referrers card will just show everything as
+  // "Direct".
   let pageviewsQuery = supabase
     .from("pageviews")
     .select(
-      "session_id, path, country, device, browser, os, is_bounce, is_new_visitor, duration_seconds, visited_at",
+      "session_id, path, country, device, browser, os, is_bounce, is_new_visitor, duration_seconds, visited_at, referrer",
     )
     .eq("site_id", site.id);
 
@@ -332,6 +365,22 @@ export default async function TrafficAnalyticsPage({
       value,
       flag: countryFlag(code),
     }));
+
+  // ── Top referrers ─────────────────────────────────────────
+  // Grouped by hostname (or "direct"), same convention as everywhere
+  // else in the app that deals with sources.
+  const referrerCounts = new Map<string, number>();
+  rows.forEach((r) => {
+    const src = sourceFromReferrer((r as { referrer?: string | null }).referrer ?? null);
+    referrerCounts.set(src, (referrerCounts.get(src) ?? 0) + 1);
+  });
+  const topReferrers = Array.from(referrerCounts.entries())
+    .sort((a, b) => b[1] - a[1])
+    .slice(0, 8)
+    .map(([source, value]) => {
+      const meta = metaFor(source);
+      return { label: meta.name, value, icon: <SourceIcon meta={meta} /> };
+    });
 
   // ── Top devices ───────────────────────────────────────────
   const deviceCounts = new Map<string, number>();
@@ -600,10 +649,12 @@ export default async function TrafficAnalyticsPage({
           <VisitorRevenueChart data={chartData} />
         </div>
 
-        {/* Panels */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-4">
+        {/* Panels — Top Pages / Countries / Referrers together, then
+            Devices / Browsers / OS below */}
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 mb-4">
           <RankedList title="Top Pages" rows={topPages} />
           <RankedList title="Countries" rows={topCountries} />
+          <RankedList title="Referrers" rows={topReferrers} />
         </div>
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
           <RankedList title="Devices" rows={topDevices} />
