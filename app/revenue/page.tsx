@@ -353,7 +353,7 @@ export default async function RevenuePage() {
                       </div>
 
                       <div className="flex items-baseline gap-1 mb-1">
-                        <span className="text-heading-lg text-ink tabular">
+                        <span className="text-2xl text-ink font-medium">
                           {formatMoneyFull(ch.revenueCents / 100)}
                         </span>
                         <span className="text-caption text-muted normal-case font-normal">
@@ -382,10 +382,10 @@ export default async function RevenuePage() {
                           },
                         ].map((s) => (
                           <div key={s.label}>
-                            <div className="text-body-sm font-bold text-ink tabular">
+                            <div className="text-lg font-medium text-ink tabular">
                               {s.value}
                             </div>
-                            <div className="text-[10px] text-muted mt-0.5">
+                            <div className="text-sm text-muted mt-0.5">
                               {s.label}
                             </div>
                           </div>
@@ -528,11 +528,11 @@ export default async function RevenuePage() {
                           single badge when the two sources are the same. */}
                       <div>
                         <div className="flex text-muted items-center gap-1 flex-wrap">
-                          <SourceBadge fontSize={13} size={4} meta={firstSrc} />
+                          <SourceBadge fontSize={13} size={18} meta={firstSrc} />
                           {!sameSource && (
                             <>
                               <span className="text-muted text-[12px]">→</span>
-                              <SourceBadge fontSize={13} size={4} meta={finalSrc} />
+                              <SourceBadge fontSize={13} size={18} meta={finalSrc} />
                             </>
                           )}
                         </div>
