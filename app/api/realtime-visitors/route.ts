@@ -5,12 +5,13 @@ import { NextResponse } from "next/server";
 // Same "online" threshold idea as the Dashboard's stat strip — a
 // pageview inside this window counts as live.
 const LIVE_WINDOW_MS = 1 * 60 * 1000;
+const RECENT_WINDOW_MS = 24 * 60 * 60 * 1000
 
 // How many rows the feed shows at once. Older pageviews naturally roll
 // off the bottom as new ones push in ahead of them (list is sorted
 // newest-first and sliced to this length) — no separate "collapse"
 // logic needed, it's just a cap on the sorted result.
-const MAX_VISIBLE = 7;
+const MAX_VISIBLE = 5;
 
 export async function GET() {
   const supabase = await createClient();
@@ -32,6 +33,7 @@ export async function GET() {
   if (!site) return NextResponse.json({ visitors: [] });
 
   const since = new Date(Date.now() - LIVE_WINDOW_MS).toISOString();
+  const recentSince = new Date(Date.now() - RECENT_WINDOW_MS).toISOString()
 
   // NOTE: assumes `pageviews.referrer` exists and holds the raw referrer
   // URL track.js posts to /api/pageview. If that column doesn't exist
@@ -47,6 +49,18 @@ export async function GET() {
     .order("visited_at", { ascending: true }); // ascending so "first row per session" below is really the first
 
   const rows = pageviews ?? [];
+  const isLive = rows.length > 0
+
+   const finalRows = isLive ? rows : await (async () => {
+    const { data: recent } = await supabase
+      .from("pageviews")
+      .select("session_id, path, country, device, browser, os, referrer, visited_at, is_new_visitor")
+      .eq("site_id", site.id)
+      .gte("visited_at", recentSince)
+      .order("visited_at", { ascending: false })
+      .limit(MAX_VISIBLE)
+    return recent ?? []
+  })()
 
   // ── One card per pageview, not one card per session ──────────────
   // Previously this collapsed every pageview for a session into a
@@ -63,7 +77,7 @@ export async function GET() {
   // whatever internal page they came from.
   const firstReferrerBySession = new Map<string, string | null>();
   const pageviewCountBySession = new Map<string, number>();
-  rows.forEach((r) => {
+  finalRows.forEach((r) => {
     if (!firstReferrerBySession.has(r.session_id)) {
       firstReferrerBySession.set(r.session_id, r.referrer ?? null);
     }
@@ -73,7 +87,7 @@ export async function GET() {
     );
   });
 
-  const visitors = rows
+  const visitors = finalRows
     .slice()
     .sort(
       (a, b) => new Date(b.visited_at).getTime() - new Date(a.visited_at).getTime(),
@@ -98,5 +112,5 @@ export async function GET() {
       pageviewsThisSession: pageviewCountBySession.get(r.session_id) ?? 1,
     }));
 
-  return NextResponse.json({ visitors });
+  return NextResponse.json({ visitors, isLive });
 }

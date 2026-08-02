@@ -17,6 +17,8 @@ function pctChange(current: number, previous: number): number {
 }
 
 export default async function AnalyticsPage() {
+
+
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) redirect("/auth/login");
@@ -116,18 +118,9 @@ export default async function AnalyticsPage() {
     .filter(s => s.clicks > 0 || s.conversions > 0)
     .sort((a, b) => b.revenueCents - a.revenueCents);
 
-  const totalRevenueCents = channelStats.reduce((s, c) => s + c.revenueCents, 0);
-
   // ── Which real sources actually drove sales for each post — for the
   // Top Posts table. A post can have sales from multiple actual sources
   // even though it only has one declared channel. ──
-  const postSources = new Map<string, Set<string>>();
-  conversionsList.forEach(c => {
-    if (!c.post_id) return;
-    const set = postSources.get(c.post_id) ?? new Set<string>();
-    set.add(c.source ?? "direct");
-    postSources.set(c.post_id, set);
-  });
 
   // ── Daily revenue series for the chart, last 30 days, grouped by
   // real source, filled with zeros so there are no gaps ──
@@ -156,8 +149,6 @@ export default async function AnalyticsPage() {
     const { __label, ...rest } = row;
     return { date: __label, ...rest };
   });
-
-  const topPosts = [...postsList].sort((a, b) => b.revenue_cents - a.revenue_cents).slice(0, 20);
 
   return (
     <AppShell>
@@ -252,82 +243,7 @@ export default async function AnalyticsPage() {
             })}
           </div>
         )}
-
-        {/* Top posts table — "Posted to" is your declared channel (the
-            plan). "Sold via" is the real source(s) that actually drove
-            sales for this post (the result) — can differ from what you
-            planned, and can show multiple badges if a post sold via more
-            than one real source. Showing both side by side, instead of
-            merging them into one label, is the point: the mismatch
-            between plan and reality is the actual insight. */}
             
-        <div className="card overflow-hidden">
-          <div className="px-5 py-4 border-b border-line">
-            <h2 className="text-heading-sm text-ink">Top Posts by Revenue</h2>
-          </div>
-          {topPosts.length === 0 ? (
-            <div className="p-8 text-center text-body-sm text-muted">No posted links yet.</div>
-          ) : (
-            <table className="w-full text-sm">
-              <thead>
-                <tr className="bg-surface-muted border-b border-line">
-                  <th className="text-left px-5 py-3 text-caption text-muted font-semibold">Post</th>
-                  <th className="text-left px-4 py-3 text-caption text-muted font-semibold">Sold via</th>
-                  <th className="text-right px-4 py-3 text-caption text-muted font-semibold">Clicks</th>
-                  <th className="text-right px-4 py-3 text-caption text-muted font-semibold">Conv.</th>
-                  <th className="text-right px-5 py-3 text-caption text-muted font-semibold">Revenue</th>
-                </tr>
-              </thead>
-              <tbody>
-                {topPosts.map(post => {
-                  const actualSources = Array.from(postSources.get(post.id) ?? []);
-                  const declaredMeta = post.channel ? metaFor(post.channel) : null;
-                  // flag when reality disagrees with the plan — the actual
-                  // "source of truth" moment this product exists to surface
-                  const mismatch = post.channel && actualSources.length > 0 && !actualSources.includes(post.channel);
-
-                  return (
-                    <tr key={post.id} className="border-b border-line hover:bg-surface-muted transition-colors last:border-0">
-                      <td className="px-5 py-3.5">
-                        <p className="text-body-sm text-ink line-clamp-1 max-w-xs">{post.content}</p>
-                      </td>
-
-                      {/* Sold via — actual, colored, this is the real result */}
-                      <td className="px-4 py-3.5">
-                        <div className="flex items-center gap-1 flex-wrap">
-                          {actualSources.length > 0 ? (
-                            actualSources.map(src => {
-                              const meta = metaFor(src);
-                              return (
-                                <span
-                                  key={src}
-                                  className="text-[10px] font-bold px-1.5 py-0.5 rounded"
-                                >
-                                  
-                                </span>
-                              );
-                            })
-                          ) : (
-                            <span className="text-caption text-muted normal-case font-normal">No sales yet</span>
-                          )}
-                          {mismatch && (
-                            <span className="text-[10px] text-primary" title="Actual source differs from what you posted to">⚠</span>
-                          )}
-                        </div>
-                      </td>
-
-                      <td className="px-4 py-3.5 text-right text-body-sm text-body tabular">{formatNumber(post.total_clicks)}</td>
-                      <td className="px-4 py-3.5 text-right text-body-sm text-body tabular">{post.total_conversions}</td>
-                      <td className="px-5 py-3.5 text-right text-body-sm font-bold text-success tabular">
-                        {formatMoneyFull(post.revenue_cents / 100)}
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          )}
-        </div>
       </div>
     </AppShell>
   );

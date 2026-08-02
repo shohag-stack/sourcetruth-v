@@ -557,7 +557,7 @@ export default async function TrafficAnalyticsPage({
         {/* Header */}
         <div className="mb-6 flex items-start justify-between flex-wrap gap-4">
           <div>
-            <h1 className="text-heading-lg text-ink mb-0.5">Analytics</h1>
+            <h1 className="text-heading-lg text-ink mb-0.5">Visitors</h1>
             <p className="text-body-sm text-muted">
               {site.domain} ·{" "}
               {RANGE_PHRASE[range] === "all time"
