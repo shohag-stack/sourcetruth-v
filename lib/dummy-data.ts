@@ -240,7 +240,7 @@ export const DUMMY_OVERVIEW = {
 // or a bare hostname from an unrecognized platform are both real
 // possibilities now that source comes from actual referrers, not a
 // fixed enum.
-export const DIRECT_META = { name: "Direct", color: "#5B5B5B", bgColor: "#F7F6F4", icon: "🌎" };
+export const DIRECT_META = { name: "Direct", color: "#5B5B5B", bgColor: "#F7F6F4", icon: "🌏" };
 export const FALLBACK_META = { name: "Other", color: "#5B5B5B", bgColor: "#F7F6F4", icon: "●" };
 
 // ─── Social platform meta ─────────────────────────────────────────────────────

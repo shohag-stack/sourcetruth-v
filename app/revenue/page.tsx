@@ -24,6 +24,7 @@ import {
 } from "@/lib/analytics";
 import { Monitor } from "lucide-react";
 import { PROVIDER_META } from "@/lib/provider";
+import { SourceBadge } from "@/lib/sourceBadge";
 
 // Shared column template — used by both the header row and every data
 // row so widths can never drift between them. Do not set per-cell
@@ -41,27 +42,6 @@ const GRID_COLS =
 // Renders whatever metaFor() gave us — direct arrow, favicon image, or
 // initials fallback for sources with no resolvable hostname. Same logic
 // as the Dashboard's Recent Sales card, kept in sync with it.
-function SourceIcon({ meta }: { meta: ReturnType<typeof metaFor> }) {
-  if (meta.iconType === "direct") {
-    return <span className="w-4 h-4">{meta.icon}</span>;
-  }
-  if (meta.iconType === "favicon") {
-    return <img src={meta.iconUrl} alt="" className="h-4 w-4" />;
-  }
-  return (
-    <span className="flex h-4 w-4 items-center justify-center text-[14px] font-bold text-muted">
-      {meta.initials}
-    </span>
-  );
-}
-
-function SourceBadge({ meta }: { meta: ReturnType<typeof metaFor> }) {
-  return (
-    <span className="inline-flex text-muted items-center gap-1 py-1 text-[13px] font-normal">
-      <SourceIcon meta={meta} /> {meta.name}
-    </span>
-  );
-}
 
 export default async function RevenuePage() {
   const supabase = await createClient();
@@ -367,11 +347,8 @@ export default async function RevenuePage() {
                   return (
                     <div key={ch.source} className="card p-5">
                       <div className="flex items-center gap-2 mb-3">
-                        <div className="w-8 h-8 rounded-lg flex items-center justify-center text-sm font-bold flex-shrink-0">
-                          {/* {meta.} */}
-                        </div>
                         <span className="font-medium text-ink">
-                          {meta.name}
+                          <SourceBadge fontSize={16} size={20} meta={meta} />
                         </span>
                       </div>
 
@@ -551,11 +528,11 @@ export default async function RevenuePage() {
                           single badge when the two sources are the same. */}
                       <div>
                         <div className="flex text-muted items-center gap-1 flex-wrap">
-                          <SourceBadge meta={firstSrc} />
+                          <SourceBadge fontSize={13} size={4} meta={firstSrc} />
                           {!sameSource && (
                             <>
                               <span className="text-muted text-[12px]">→</span>
-                              <SourceBadge meta={finalSrc} />
+                              <SourceBadge fontSize={13} size={4} meta={finalSrc} />
                             </>
                           )}
                         </div>

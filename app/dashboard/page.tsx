@@ -515,7 +515,7 @@ export default async function DashboardPage() {
                           <img
                             src={meta.iconUrl}
                             alt=""
-                            className="h-6 w-6 rounded-sm"
+                            className="h-4 w-4 rounded-sm"
                           />
                         ) : (
                           <span className="flex h-4 w-4 items-center justify-center rounded bg-surface-muted text-[10px] font-bold text-muted">
