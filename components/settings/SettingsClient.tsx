@@ -270,7 +270,7 @@ export default function SettingsClient({ user, sites }: SettingsClientProps) {
                           onClick={() => copyToClipboard(site.site_key, `key-${site.id}`)}
                           className="inline-flex items-center gap-1.5 text-body-sm text-success font-mono hover:opacity-70 transition-opacity">
                           {copiedKey === `key-${site.id}` ? '✓ copied' : site.site_key}
-                          <span aria-hidden>📋</span>
+                          <span aria-hidden><img src='/src/images/copy.svg'/></span>
                         </button>
                       </td>
                       <td className="px-5 py-3 max-w-[280px]">
@@ -279,7 +279,7 @@ export default function SettingsClient({ user, sites }: SettingsClientProps) {
                           className="w-full flex items-center justify-between gap-2 bg-surface-muted border border-line rounded-lg px-3 py-2 text-left hover:border-strong transition-colors">
                           <code className="text-[11px] text-muted font-mono truncate">{snippet}</code>
                           <span className="text-muted text-xs flex-shrink-0">
-                            {copiedKey === `snippet-${site.id}` ? '✓' : '📋'}
+                            {copiedKey === `snippet-${site.id}` ? '✓' : <img src='/src/images/copy.svg'/>}
                           </span>
                         </button>
                       </td>
@@ -287,7 +287,7 @@ export default function SettingsClient({ user, sites }: SettingsClientProps) {
                         <button
                           onClick={() => setDeletingId(site.id)}
                           className="inline-flex items-center gap-1.5 text-body-sm text-primary border border-primary/30 hover:bg-primary-tint px-3 py-1.5 rounded-xl transition-all">
-                          🗑 Remove
+                          <img src='/src/images/remove.svg'/> Remove
                         </button>
                       </td>
                     </tr>
@@ -355,8 +355,8 @@ export default function SettingsClient({ user, sites }: SettingsClientProps) {
               console.log('TODO: delete account')
             }
           }}
-          className="btn-outline-primary">
-          🗑 Delete Account
+          className="btn-outline-primary flex gap-2">
+          <img src='/src/images/remove.svg'/> Delete Account
         </button>
       </section>
 

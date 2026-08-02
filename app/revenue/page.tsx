@@ -181,15 +181,16 @@ export default async function RevenuePage() {
                 const meta = PROVIDER_META[conn.provider] ?? { name: conn.provider, icon: '◈' }
                 const providerTotal = byProvider[conn.provider] ?? 0
                 return (
-                  <div key={conn.provider} className="p-5">
-                    <div className="flex items-center gap-1.5 text-body-sm text-body mb-2">
-                      <span>{meta.icon}</span> {meta.name}
-                    </div>
+                  <div key={conn.provider} className="flex flex-col items-left justify-center p-5">
                     <div className="text-2xl font-bold text-ink tabular mb-1">
                       {formatMoney(providerTotal)}
                     </div>
-                    <div className="text-caption text-muted normal-case font-normal">
+                    
+                    {/* <div className="text-caption text-muted normal-case font-normal">
                       {rows.filter(r => r.provider === conn.provider).length} sales
+                    </div> */}
+                    <div className="flex items-center gap-1.5 text-body-sm text-body">
+                      <span><span className='flex w-6 h-6 gap-0'>{meta.icon}</span></span> {meta.name}
                     </div>
                   </div>
                 )

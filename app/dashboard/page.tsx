@@ -581,7 +581,7 @@ export default async function DashboardPage() {
               <div className="text-caption text-muted normal-case font-normal mt-0.5 space-y-0.5">
                 <div className="flex items-center gap-1.5">
                   <SourceIcon meta={purchaseMeta} />
-                  <span>Purchased from {purchaseMeta.name}</span>
+                  <span>Purchased from <Link className="text-blue-600" href={purchaseMeta.name}>{purchaseMeta.name}</Link></span>
                   <span>-</span>
                   <span>{timeAgo(event.received_at)}</span>
                 </div>
@@ -589,7 +589,7 @@ export default async function DashboardPage() {
                 {!sameSource && (
                   <div className="flex items-center gap-1.5">
                     <SourceIcon meta={firstMeta} />
-                    <span>First seen from {firstMeta.name}</span>
+                    <span>First seen from <Link className="text-blue-600" href={firstMeta.name}>{firstMeta.name}</Link></span>
                   </div>
                 )}
               </div>
