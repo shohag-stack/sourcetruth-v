@@ -11,6 +11,10 @@ import { DateRangePicker } from "@/components/ui/DateRangePicker";
 import { getSince } from "@/lib/getSince";
 import { RealtimeVisitors } from "@/components/analytics/RealtimeVisitors";
 import { metaFor } from "@/lib/metaFor";
+import { RankedList } from "@/components/analytics/RankedList";
+import { ActiveFilters } from "@/components/analytics/ActiveFilters";
+import { Suspense } from "react";
+import { countryDisplay } from "@/lib/countryFlag";
 
 // ─── Helpers ──────────────────────────────────────────────────
 function formatDuration(seconds: number): string {
@@ -50,51 +54,6 @@ function SourceIcon({ meta }: { meta: ReturnType<typeof metaFor> }) {
     <span className="flex h-4 w-4 items-center justify-center rounded bg-surface-muted text-[10px] font-bold text-muted">
       {meta.initials}
     </span>
-  );
-}
-
-// ─── Ranked list component ────────────────────────────────────
-function RankedList({
-  title,
-  rows,
-}: {
-  title: string;
-  rows: { label: string; value: number; flag?: string; icon?: React.ReactNode }[];
-}) {
-  const max = rows[0]?.value ?? 1;
-  return (
-    <div className="card p-5">
-      <h2 className="text-heading-sm text-ink mb-4">{title}</h2>
-      {rows.length === 0 ? (
-        <p className="text-body-sm text-muted py-4 text-center">No data yet</p>
-      ) : (
-        <div className="space-y-1">
-          {rows.map((row, i) => {
-            const pct = Math.round((row.value / max) * 100);
-            return (
-              <div
-                key={`${row.label}-${i}`}
-                className="relative flex items-center justify-between px-2 py-2 rounded-lg overflow-hidden"
-              >
-                <div
-                  className="absolute inset-y-0 left-0 bg-surface-muted rounded-lg"
-                  style={{ width: `${pct}%` }}
-                />
-                <span className="relative text-body-sm text-ink flex items-center gap-2">
-                  {row.icon ?? (row.flag && <span>{row.flag}</span>)}
-                  {row.label}
-                </span>
-                <span className="relative text-body-sm text-body flex items-center gap-2 tabular">
-                  {formatNumber(row.value)}
-                  <span className="text-muted">|</span>
-                  {pct}%
-                </span>
-              </div>
-            );
-          })}
-        </div>
-      )}
-    </div>
   );
 }
 
@@ -209,9 +168,25 @@ const RANGE_PHRASE: Record<Range, string> = {
 export default async function TrafficAnalyticsPage({
   searchParams,
 }: {
-  searchParams: Promise<{ range?: Range }>;
+  searchParams: Promise<{
+    range?: Range;
+    country: string;
+    device: string;
+    browser: string;
+    os: string;
+    path: string;
+    referrer: string;
+  }>;
 }) {
   const params = await searchParams;
+
+  const filterCountry = params.country ?? null;
+  const filterDevice = params.device ?? null;
+  const filterBrowser = params.browser ?? null;
+  const filterOS = params.os ?? null;
+  const filterPath = params.path ?? null;
+  const filterReferrer = params.referrer ?? null;
+
   const range: Range = params.range ?? "24h";
 
   const supabase = await createClient();
@@ -266,6 +241,21 @@ export default async function TrafficAnalyticsPage({
       "session_id, path, country, device, browser, os, is_bounce, is_new_visitor, duration_seconds, visited_at, referrer",
     )
     .eq("site_id", site.id);
+
+  // Apply drill-down filters
+  if (filterCountry)
+    pageviewsQuery = pageviewsQuery.eq("country", filterCountry);
+  if (filterDevice) pageviewsQuery = pageviewsQuery.eq("device", filterDevice);
+  if (filterBrowser)
+    pageviewsQuery = pageviewsQuery.eq("browser", filterBrowser);
+  if (filterOS) pageviewsQuery = pageviewsQuery.eq("os", filterOS);
+  if (filterPath) pageviewsQuery = pageviewsQuery.eq("path", filterPath);
+  if (filterReferrer)
+    pageviewsQuery = pageviewsQuery.ilike("referrer", `%${filterReferrer}%`);
+
+  if (since) {
+    pageviewsQuery = pageviewsQuery.gte("visited_at", since.toISOString());
+  }
 
   let conversionsQuery = supabase
     .from("conversions")
@@ -361,9 +351,8 @@ export default async function TrafficAnalyticsPage({
     .sort((a, b) => b[1] - a[1])
     .slice(0, 8)
     .map(([code, value]) => ({
-      label: code === "unknown" ? "Unknown" : code,
+      label: code === "unknown" ? "Unknown" : countryDisplay(code),
       value,
-      flag: countryFlag(code),
     }));
 
   // ── Top referrers ─────────────────────────────────────────
@@ -371,7 +360,9 @@ export default async function TrafficAnalyticsPage({
   // else in the app that deals with sources.
   const referrerCounts = new Map<string, number>();
   rows.forEach((r) => {
-    const src = sourceFromReferrer((r as { referrer?: string | null }).referrer ?? null);
+    const src = sourceFromReferrer(
+      (r as { referrer?: string | null }).referrer ?? null,
+    );
     referrerCounts.set(src, (referrerCounts.get(src) ?? 0) + 1);
   });
   const topReferrers = Array.from(referrerCounts.entries())
@@ -585,6 +576,11 @@ export default async function TrafficAnalyticsPage({
           </div>
         </div>
 
+        {/* active filters tab */}
+        <Suspense fallback={null}>
+          <ActiveFilters />
+        </Suspense>
+
         {/* Empty state */}
         {totalPageviews === 0 && (
           <div className="card p-10 text-center mb-6">
@@ -652,14 +648,38 @@ export default async function TrafficAnalyticsPage({
         {/* Panels — Top Pages / Countries / Referrers together, then
             Devices / Browsers / OS below */}
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 mb-4">
-          <RankedList title="Top Pages" rows={topPages} />
-          <RankedList title="Countries" rows={topCountries} />
-          <RankedList title="Referrers" rows={topReferrers} />
+          <Suspense fallback={<div className="card p-5 h-48 animate-pulse" />}>
+            <RankedList filterKey="path" title="Top Pages" rows={topPages} />
+          </Suspense>
+          <Suspense fallback={<div className="card p-5 h-48 animate-pulse" />}>
+            <RankedList
+              filterKey="country"
+              title="Countries"
+              rows={topCountries}
+            />
+          </Suspense>
+          <Suspense fallback={<div className="card p-5 h-48 animate-pulse" />}>
+            <RankedList
+              filterKey="referrer"
+              title="Referrers"
+              rows={topReferrers}
+            />
+          </Suspense>
         </div>
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-          <RankedList title="Devices" rows={topDevices} />
-          <RankedList title="Browsers" rows={topBrowsers} />
-          <RankedList title="OS" rows={topOS} />
+          <Suspense fallback={<div className="card p-5 h-48 animate-pulse" />}>
+            <RankedList filterKey="device" title="Devices" rows={topDevices} />
+          </Suspense>
+          <Suspense fallback={<div className="card p-5 h-48 animate-pulse" />}>
+            <RankedList
+              filterKey="browser"
+              title="Browsers"
+              rows={topBrowsers}
+            />
+          </Suspense>
+          <Suspense fallback={<div className="card p-5 h-48 animate-pulse" />}>
+            <RankedList filterKey="os" title="OS" rows={topOS} />
+          </Suspense>
         </div>
       </div>
     </AppShell>

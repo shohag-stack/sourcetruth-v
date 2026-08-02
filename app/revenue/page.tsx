@@ -41,7 +41,7 @@ function SourceIcon({ meta }: { meta: ReturnType<typeof metaFor> }) {
 
 function SourceBadge({ meta }: { meta: ReturnType<typeof metaFor> }) {
   return (
-    <span className="inline-flex items-center gap-1 px-2 py-1 text-[12px] font-semibold text-ink">
+    <span className="inline-flex text-muted items-center gap-1 py-1 text-[13px] font-normal">
       <SourceIcon meta={meta} /> {meta.name}
     </span>
   )
@@ -250,8 +250,8 @@ export default async function RevenuePage() {
                 </p>
               </div>
             ) : (
-              <div className="space-y-3 bg-white rounded-xl pt-4 border border-separate">
-                <div className={`hidden ${GRID_COLS} px-4 text-caption font-semibold text-muted normal-case tracking-wide border-b pb-4`}>
+              <div className="bg-white rounded-xl pt-4 border border-separate">
+                <div className={`hidden ${GRID_COLS} px-4 text-sm font-medium text-muted normal-case tracking-wide border-b pb-4`}>
                   <div>Customer</div>
                   <div>Journey</div>
                   <div>Provider</div>
@@ -268,8 +268,10 @@ export default async function RevenuePage() {
                   const returning = isReturning.get(conv.id) ?? false
                   const convertLabel = timeToConvert(conv.first_seen_at, conv.received_at)
 
+                  console.log("showoing firstSrce from revenue page",firstSrc)
+
                   return (
-                    <div key={conv.id} className={`p-4 border-b flex flex-wrap items-center gap-4 ${GRID_COLS}`}>
+                    <div key={conv.id} className={`p-4 border-b flex flex-wrap items-center gap-4 hover:bg-surface-muted ${GRID_COLS}`}>
 
                       {/* Customer + device row — links to the full journey page */}
                       <Link
@@ -288,7 +290,7 @@ export default async function RevenuePage() {
                               {returning ? 'Returning' : 'New'}
                             </span>
                           </div>
-                          <div className="flex items-center gap-2 text-caption text-muted normal-case font-normal mt-0.5 flex-wrap">
+                          <div className="flex items-center gap-2 text-[13px] text-muted normal-case font-normal mt-0.5 flex-wrap">
                             {conv.country && <span>{countryFlag(conv.country)} {conv.country}</span>}
                             {conv.device && (
                               <span className="inline-flex items-center gap-1">
@@ -314,7 +316,7 @@ export default async function RevenuePage() {
                           on top of the DataFast-style fields. Collapses to a
                           single badge when the two sources are the same. */}
                       <div>
-                        <div className="flex items-center gap-1 flex-wrap">
+                        <div className="flex text-muted items-center gap-1 flex-wrap">
                           <SourceBadge meta={firstSrc} />
                           {!sameSource && (
                             <>
@@ -336,7 +338,7 @@ export default async function RevenuePage() {
                       {/* Provider + product */}
                       <div className="text-body-sm text-body">
                         <div className="flex items-center gap-1.5 mb-3"><span className='w-3.5 h-3.5'> {providerMeta.icon} </span> {providerMeta.name}</div>
-                        <div className="text-caption text-muted normal-case font-normal mt-0.5">{conv.product_name ?? '—'}</div>
+                        <div className="text-caption text-blue-400 normal-case font-normal mt-0.5">{conv.product_name ?? '—'}</div>
                       </div>
 
                       {/* Amount */}
@@ -350,7 +352,7 @@ export default async function RevenuePage() {
                       </div>
 
                       {/* When */}
-                      <div className="text-caption text-muted normal-case font-normal text-right">
+                      <div className="text-[13px] text-muted normal-case font-normal text-right">
                         {timeAgo(conv.received_at)}
                       </div>
                     </div>
