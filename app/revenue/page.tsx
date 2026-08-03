@@ -25,6 +25,8 @@ import {
 import { Monitor } from "lucide-react";
 import { PROVIDER_META } from "@/lib/provider";
 import { SourceBadge } from "@/lib/sourceBadge";
+import { avatarUrl } from "@/lib/avatarUrl";
+import Image from "next/image";
 
 // Shared column template — used by both the header row and every data
 // row so widths can never drift between them. Do not set per-cell
@@ -473,8 +475,14 @@ export default async function RevenuePage() {
                         )}`}
                         className="flex items-center gap-3 group"
                       >
-                        <div className="w-10 h-10 rounded-full bg-surface-muted flex items-center justify-center text-sm font-bold text-body flex-shrink-0">
-                          {(conv.customer_email ?? "?").charAt(0).toUpperCase()}
+                        <div className="w-11 h-11 rounded-full bg-surface-muted flex items-center justify-center text-sm font-bold text-body flex-shrink-0">
+                          <img
+                            src={avatarUrl(conv.customer_email ?? conv.id)}
+                            alt={conv.customer_email}
+                            width={40}
+                            height={40}
+                            className="w-11 h-11 rounded-full bg-surface-muted"
+                          />
                         </div>
                         <div className="min-w-0">
                           <div className="flex items-center gap-2 flex-wrap">
@@ -528,11 +536,19 @@ export default async function RevenuePage() {
                           single badge when the two sources are the same. */}
                       <div>
                         <div className="flex text-muted items-center gap-1 flex-wrap">
-                          <SourceBadge fontSize={13} size={18} meta={firstSrc} />
+                          <SourceBadge
+                            fontSize={13}
+                            size={18}
+                            meta={firstSrc}
+                          />
                           {!sameSource && (
                             <>
                               <span className="text-muted text-[12px]">→</span>
-                              <SourceBadge fontSize={13} size={18} meta={finalSrc} />
+                              <SourceBadge
+                                fontSize={13}
+                                size={18}
+                                meta={finalSrc}
+                              />
                             </>
                           )}
                         </div>

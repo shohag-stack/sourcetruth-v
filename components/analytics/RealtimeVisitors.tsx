@@ -5,8 +5,10 @@ import { useEffect, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import { countryFlag } from "@/lib/countryFlag";
 import { metaFor } from "@/lib/metaFor";
-import { BROWSER_ICON, BROWSER_LABEL, DEVICE_ICON, OS_ICON, OS_LABEL } from "@/lib/analytics";
+import { BROWSER_ICON, BROWSER_LABEL, DEVICE_ICON, DEVICE_LABEL, OS_ICON, OS_LABEL } from "@/lib/analytics";
 import { timeAgo } from "@/lib/utils";
+import { avatarUrl } from "@/lib/avatarUrl";
+import Image from "next/image";
 
 // ── Deterministic, anonymized visitor identity ───────────────────
 // We don't have (and shouldn't show) a real name — session_id is
@@ -196,17 +198,21 @@ export function RealtimeVisitors() {
                   className="flex items-center gap-3 py-3 flex-wrap border-b border-line last:border-0 overflow-hidden"
                 >
                   <div className="relative flex-shrink-0">
-                    <div
-                      className="w-9 h-9 rounded-full flex items-center justify-center text-xs font-bold text-white"
-                      style={{ backgroundColor: identity.color }}
-                    >
-                      {identity.initials}
-                    </div>
+                    <img
+                          src={avatarUrl(v.sessionId)}
+                          alt={v.sessionId}
+                          width={40}
+                          height={40}
+                          className="w-9 h-9 rounded-full bg-surface-muted"
+                        />
                     {v.country && (
-                      <span className="absolute -bottom-1 -right-1 text-[11px] leading-none">
-                        {countryFlag(v.country)}
-                      </span>
-                    )}
+                        <span
+                          className="absolute -bottom-1 -right-1 text-[18px] leading-none rounded-full"
+                          style={{ filter: 'drop-shadow(0 0 0 2px white)' }}
+                        >
+                          {countryFlag(v.country)}
+                        </span>
+                      )}
                   </div>
 
                   <div className="flex flex-col min-w-0 flex-1 gap-0.5">
@@ -225,9 +231,9 @@ export function RealtimeVisitors() {
                       )}
                     </div>
 
-                    <div className="flex items-center gap-2 text-caption text-muted normal-case font-normal flex-wrap">
+                    <div className="flex items-center gap-2 text-sm text-muted normal-case font-normal flex-wrap">
                       <span className="flex gap-2">
-                        {DEVICE_ICON[v.device ?? ""] ?? "●"}{" "} {v.device ?? "unknown"}
+                        {DEVICE_ICON[v.device ?? ""] ?? "●"}{" "} {DEVICE_LABEL[v.device ?? "unknown"]}
                       </span>
                       {v.os && <span className="flex gap-2 justify-center items-center">{OS_ICON[v.os]}{OS_LABEL[v.os]}</span>}
                       {v.browser && (

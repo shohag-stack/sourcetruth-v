@@ -14,7 +14,8 @@ import { metaFor } from "@/lib/metaFor";
 import { RankedList } from "@/components/analytics/RankedList";
 import { ActiveFilters } from "@/components/analytics/ActiveFilters";
 import { Suspense } from "react";
-import { countryDisplay } from "@/lib/countryFlag";
+import { countryDisplay, countryName } from "@/lib/countryFlag";
+import { BROWSER_ICON, BROWSER_LABEL, DEVICE_ICON, DEVICE_LABEL, OS_ICON, OS_LABEL } from "@/lib/analytics";
 
 // ─── Helpers ──────────────────────────────────────────────────
 function formatDuration(seconds: number): string {
@@ -57,16 +58,6 @@ function SourceIcon({ meta }: { meta: ReturnType<typeof metaFor> }) {
   );
 }
 
-// ─── Country flag emoji ───────────────────────────────────────
-function countryFlag(code: string): string {
-  if (!code || code === "unknown") return "🌍";
-  const flag = code
-    .toUpperCase()
-    .split("")
-    .map((c) => String.fromCodePoint(0x1f1e6 + c.charCodeAt(0) - 65))
-    .join("");
-  return flag;
-}
 
 type Range = "24h" | "7d" | "30d" | "90d" | "1y" | "all";
 
@@ -250,8 +241,10 @@ export default async function TrafficAnalyticsPage({
     pageviewsQuery = pageviewsQuery.eq("browser", filterBrowser);
   if (filterOS) pageviewsQuery = pageviewsQuery.eq("os", filterOS);
   if (filterPath) pageviewsQuery = pageviewsQuery.eq("path", filterPath);
-  if (filterReferrer)
-    pageviewsQuery = pageviewsQuery.ilike("referrer", `%${filterReferrer}%`);
+
+  if (filterReferrer === "direct") {
+  pageviewsQuery = pageviewsQuery.or("referrer.is.null,referrer.eq.");
+}
 
   if (since) {
     pageviewsQuery = pageviewsQuery.gte("visited_at", since.toISOString());
@@ -351,8 +344,9 @@ export default async function TrafficAnalyticsPage({
     .sort((a, b) => b[1] - a[1])
     .slice(0, 8)
     .map(([code, value]) => ({
-      label: code === "unknown" ? "Unknown" : countryDisplay(code),
+      label: code === "unknown" ? "Unknown" : countryDisplay(code) ,
       value,
+      filterValue: code,
     }));
 
   // ── Top referrers ─────────────────────────────────────────
@@ -370,7 +364,7 @@ export default async function TrafficAnalyticsPage({
     .slice(0, 8)
     .map(([source, value]) => {
       const meta = metaFor(source);
-      return { label: meta.name, value, icon: <SourceIcon meta={meta} /> };
+      return { label: meta.name, value, icon: <SourceIcon meta={meta} />, filterValue: source };
     });
 
   // ── Top devices ───────────────────────────────────────────
@@ -382,8 +376,9 @@ export default async function TrafficAnalyticsPage({
   const topDevices = Array.from(deviceCounts.entries())
     .sort((a, b) => b[1] - a[1])
     .map(([label, value]) => ({
-      label: label.charAt(0).toUpperCase() + label.slice(1),
+      label: DEVICE_LABEL[label],
       value,
+      icon: DEVICE_ICON[label]
     }));
 
   // ── Top browsers ──────────────────────────────────────────
@@ -392,12 +387,15 @@ export default async function TrafficAnalyticsPage({
     const b = r.browser ?? "unknown";
     browserCounts.set(b, (browserCounts.get(b) ?? 0) + 1);
   });
-  const topBrowsers = Array.from(browserCounts.entries())
-    .sort((a, b) => b[1] - a[1])
-    .map(([label, value]) => ({
-      label: label.charAt(0).toUpperCase() + label.slice(1),
-      value,
-    }));
+// Browsers — chrome, safari, firefox
+const topBrowsers = Array.from(browserCounts.entries())
+  .sort((a, b) => b[1] - a[1])
+  .map(([label, value]) => ({
+    label: BROWSER_LABEL[label] ?? label,
+    value,
+    icon: BROWSER_ICON[label] ?? null,
+    filterValue: label,
+  }))
 
   // ── Top OS ────────────────────────────────────────────────
   const osCounts = new Map<string, number>();
@@ -405,12 +403,14 @@ export default async function TrafficAnalyticsPage({
     const o = r.os ?? "unknown";
     osCounts.set(o, (osCounts.get(o) ?? 0) + 1);
   });
-  const topOS = Array.from(osCounts.entries())
-    .sort((a, b) => b[1] - a[1])
-    .map(([label, value]) => ({
-      label: label.charAt(0).toUpperCase() + label.slice(1),
-      value,
-    }));
+const topOS = Array.from(osCounts.entries())
+  .sort((a, b) => b[1] - a[1])
+  .map(([label, value]) => ({
+    label: OS_LABEL[label] ?? label,
+    value,
+    icon: OS_ICON[label] ?? null,
+    filterValue: label,
+  }))
 
   // ── Stat cards data ───────────────────────────────────────
   const STATS = [

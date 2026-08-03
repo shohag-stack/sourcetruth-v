@@ -13,6 +13,12 @@ export const DEVICE_ICON: Record<string, ReactNode> = {
   tablet: <Tablet className="h-4 w-4" />,
 }
 
+export const DEVICE_LABEL: Record<string, string> = {
+  desktop: 'Desktop',
+  mobile: 'Mobile',
+  tablet: 'Tablet',
+}
+
 export const OS_ICON: Record<string, ReactNode> = {
   mac: <SiApple className="h-4 w-4" />,
   windows: <FaWindows className="h-4 w-4 text-[#00A4EF]" />,
@@ -39,4 +45,9 @@ export const BROWSER_LABEL: Record<string, string> = {
   safari: 'Safari',
   firefox: 'Firefox',
   other: 'Unknown browser',
+}
+
+
+export const deviceDisplay=(label: string)=> {
+  return `${DEVICE_ICON[label]} + label`
 }

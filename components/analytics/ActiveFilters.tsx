@@ -41,7 +41,7 @@ export function ActiveFilters() {
         <button
           key={key}
           onClick={() => removeFilter(key)}
-          className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-primary-tint border border-primary/20 text-primary text-body-sm rounded-xl font-medium hover:bg-primary hover:text-white transition-all"
+          className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-primary-tint border border-primary/20 text-primary text-body-sm rounded-xl font-medium transition-all"
         >
           <span className="text-[11px] text-primary/60 uppercase tracking-wide">
             {FILTER_LABELS[key]}:

@@ -13,6 +13,7 @@ const PROTECTED = [
 const AUTH_PAGES = ["/auth/login"];
 
 export async function middleware(request: NextRequest, response: NextResponse) {
+  
   let supabaseResponse = NextResponse.next({ request });
 
   const supabase = createServerClient(
