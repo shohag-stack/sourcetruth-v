@@ -355,7 +355,7 @@ export default async function RevenuePage() {
                       </div>
 
                       <div className="flex items-baseline gap-1 mb-1">
-                        <span className="text-2xl text-ink font-medium">
+                        <span className="text-2xl text-ink font-semibold">
                           {formatMoneyFull(ch.revenueCents / 100)}
                         </span>
                         <span className="text-caption text-muted normal-case font-normal">
@@ -384,7 +384,7 @@ export default async function RevenuePage() {
                           },
                         ].map((s) => (
                           <div key={s.label}>
-                            <div className="text-lg font-medium text-ink tabular">
+                            <div className="text-lg font-semibold text-ink tabular">
                               {s.value}
                             </div>
                             <div className="text-sm text-muted mt-0.5">
