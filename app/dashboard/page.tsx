@@ -4,11 +4,12 @@ import {
   VisitorRevenueChart,
   VisitorRevenueDay,
 } from "@/components/charts/VisitorRevenueChart";
-import { countryFlag } from "@/lib/countryFlag";
+import { countryDisplay, countryFlag } from "@/lib/countryFlag";
 import {
   formatMoney,
   formatMoneyFull,
   formatNumber,
+  maskEmail,
   pctChange,
   timeAgo,
   trendLabel,
@@ -18,6 +19,13 @@ import { redirect } from "next/navigation";
 import Link from "next/link";
 import { metaFor } from "@/lib/metaFor";
 import BestPostCard from "@/components/posts/BestPostCard";
+import { avatarUrl } from "@/lib/avatarUrl";
+import {
+  BROWSER_ICON,
+  BROWSER_LABEL,
+  DEVICE_ICON,
+} from "@/lib/analytics";
+import { Monitor } from "lucide-react";
 
 export default async function DashboardPage() {
   const supabase = await createClient();
@@ -61,7 +69,12 @@ export default async function DashboardPage() {
     supabase
       .from("conversions")
       .select(
-        "id, source, amount_cents, post_id, customer_email, provider,first_source, received_at",
+        `id, source, amount_cents, post_id, customer_email, provider, country, first_seen_at,first_source, device,os,browser, received_at, posts (
+            id,
+            content,
+            channel,
+            slug
+          )`,
       )
       .eq("user_id", user.id)
       .gte("received_at", since60)
@@ -353,23 +366,13 @@ export default async function DashboardPage() {
     },
   ];
 
-
-
-  function SourceIcon({ meta }: { meta: ReturnType<typeof metaFor> }) {
-  if (meta.iconType === "direct") {
-    return <span>{meta.icon}</span>;
-  }
-
-  if (meta.iconType === "favicon") {
-    return <img src={meta.iconUrl} alt="" className="h-4 w-4 rounded-sm" />;
-  }
-
-  return (
-    <span className="flex h-4 w-4 items-center justify-center rounded bg-surface-muted text-[10px] font-bold text-muted">
-      {meta.initials}
-    </span>
-  );
-}
+  const firstSeenEmail = new Set<string>();
+  const isReturning = new Map<string, boolean>();
+  [...conversionsThis30].reverse().forEach((c) => {
+    if (!c.customer_email) return;
+    isReturning.set(c.id, firstSeenEmail.has(c.customer_email));
+    firstSeenEmail.add(c.customer_email);
+  });
 
   return (
     <AppShell>
@@ -476,7 +479,12 @@ export default async function DashboardPage() {
                 );
 
                 return (
-                  <BestPostCard post={post} actualSources={actualSources} countries={countries} conversionRate={conversionRate} />
+                  <BestPostCard
+                    post={post}
+                    actualSources={actualSources}
+                    countries={countries}
+                    conversionRate={conversionRate}
+                  />
                 );
               })}
             </div>
@@ -515,7 +523,7 @@ export default async function DashboardPage() {
                           <img
                             src={meta.iconUrl}
                             alt=""
-                            className="h-4 w-4 rounded-sm"
+                            className="h-6 w-6 rounded-sm"
                           />
                         ) : (
                           <span className="flex h-4 w-4 items-center justify-center rounded bg-surface-muted text-[10px] font-bold text-muted">
@@ -537,84 +545,102 @@ export default async function DashboardPage() {
           </div>
 
           {/* ── Recent sales — real source, not declared channel ── */}
-            
 
-            {/* ── Recent sales ── */}
-<div className="card p-5">
-  <div className="flex items-center justify-between mb-4">
-    <h2 className="text-heading-sm text-ink">Recent Sales</h2>
-    <Link
-      href="/revenue"
-      className="text-body-sm text-primary hover:text-primary-hover transition-colors"
-    >
-      See all
-    </Link>
-  </div>
-
-  {recentSales.length === 0 ? (
-    <p className="text-body-sm text-muted">No sales yet.</p>
-  ) : (
-    <div className="space-y-1">
-      {recentSales.map((event) => {
-        const purchaseMeta = metaFor(event.source ?? "direct");
-        const firstMeta = metaFor(
-          event.first_source ?? event.source ?? "direct",
-        );
-        const sameSource =
-          (event.first_source ?? event.source ?? "direct") ===
-          (event.source ?? "direct");
-
-        return (
-          <div
-            key={event.id}
-            className="flex items-center gap-3 py-2.5 border-b border-line last:border-0"
-          >
-            <div className="w-8 h-8 rounded-full bg-surface-muted flex items-center justify-center text-body-sm font-bold text-body flex-shrink-0">
-              {(event.customer_email ?? "?").charAt(0).toUpperCase()}
-            </div>
-
-            <div className="flex-1 min-w-0">
-              <div className="text-body-sm text-ink font-medium truncate">
-                {event.customer_email ?? "Unknown"}
-              </div>
-
-              <div className="text-caption text-muted normal-case font-normal mt-0.5 space-y-0.5">
-                <div className="flex items-center gap-1.5">
-                  <SourceIcon meta={purchaseMeta} />
-                  <span>Purchased from <Link className="text-blue-600" href={purchaseMeta.name}>{purchaseMeta.name}</Link></span>
-                  <span>-</span>
-                  <span>{timeAgo(event.received_at)}</span>
-                </div>
-
-                {!sameSource && (
-                  <div className="flex items-center gap-1.5">
-                    <SourceIcon meta={firstMeta} />
-                    <span>First seen from <Link className="text-blue-600" href={firstMeta.name}>{firstMeta.name}</Link></span>
-                  </div>
-                )}
-              </div>
-            </div>
-
-            <span className="text-body-sm font-bold text-success tabular flex-shrink-0">
-              +{formatMoneyFull(event.amount_cents / 100)}
-            </span>
-
-            {event.post_id && (
+          {/* ── Recent sales ── */}
+          <div className="card p-5">
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-heading-sm text-ink">Recent Sales</h2>
               <Link
-                href={`/posts/${event.post_id}`}
-                className="btn-ghost !py-1.5 !px-2.5 text-[12px] border border-line flex-shrink-0"
+                href="/revenue"
+                className="text-body-sm text-primary hover:text-primary-hover transition-colors"
               >
-                View post
+                See all
               </Link>
+            </div>
+
+            {recentSales.length === 0 ? (
+              <p className="text-body-sm text-muted">No sales yet.</p>
+            ) : (
+              <div className="space-y-1">
+                {recentSales.map((conv) => {
+                  const returning = isReturning.get(conv.id) ?? false;
+
+                  return (
+                    <div
+                      key={conv.id}
+                      className={`p-4 border-b flex justify-between items-center gap-4 hover:bg-surface-muted`}
+                    >
+                      {/* Customer + device row — links to the full journey page */}
+                      <Link
+                        href={`/revenue/customers/${encodeURIComponent(
+                          conv.customer_email ?? "",
+                        )}`}
+                        className="flex-1 items-center gap-3 group"
+                      >
+                        <div className="flex gap-4">
+                          <div className="w-11 h-11 rounded-full bg-surface-muted flex items-center justify-center text-sm font-bold text-body flex-shrink-0">
+                          <img
+                            src={avatarUrl(conv.customer_email ?? conv.id)}
+                            alt={conv.customer_email}
+                            width={40}
+                            height={40}
+                            className="w-11 h-11 rounded-full bg-surface-muted"
+                          />
+                        </div>
+                        <div className="min-w-0">
+                          <div className="flex items-center gap-2 flex-wrap">
+                            <span className="text-body-sm font-semibold text-ink truncate group-hover:text-primary group-hover:underline transition-colors">
+                              {maskEmail(conv.customer_email)}
+                            </span>
+                            <span
+                              className={
+                                returning
+                                  ? "badge-success"
+                                  : "badge-primary-tint"
+                              }
+                            >
+                              {returning ? "Returning" : "New"}
+                            </span>
+                          </div>
+                          <div className="flex items-center gap-2 text-[13px] text-muted normal-case font-normal mt-0.5 flex-wrap">
+                            {conv.country && (
+                              <span>{countryDisplay(conv.country)}</span>
+                            )}
+                            {conv.device && (
+                              <span className="inline-flex items-center gap-1">
+                                {DEVICE_ICON[conv.device] ?? (
+                                  <Monitor className="h-3.5 w-3.5" />
+                                )}{" "}
+                                {conv.device}
+                              </span>
+                            )}
+                            {conv.browser && (
+                              <span className="inline-flex items-center gap-1">
+                                {BROWSER_ICON[conv.browser] ?? null}{" "}
+                                {BROWSER_LABEL[conv.browser] ?? conv.browser}
+                              </span>
+                            )}
+                          </div>
+                        </div>
+                        </div>
+                      </Link>
+
+
+                      {/* Amount */}
+                      <div className="text-body-sm font-bold text-success tabular">
+                        +{formatMoney(conv.amount_cents)}
+                      </div>
+
+                      {/* When */}
+                      <div className="text-[13px] text-muted normal-case font-normal text-right">
+                        {timeAgo(conv.received_at)}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
             )}
           </div>
-        );
-      })}
-    </div>
-  )}
-</div>
-
-
         </div>
       </div>
     </AppShell>

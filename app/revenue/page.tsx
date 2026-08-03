@@ -571,8 +571,8 @@ export default async function RevenuePage() {
                         <div className="flex items-center gap-1.5 mb-3">
                           <span className="w-3.5 h-3.5">
                             {" "}
-                            {providerMeta.icon}{" "}
-                          </span>{" "}
+                            {providerMeta.icon}
+                          </span>
                           {providerMeta.name}
                         </div>
                         <div className="text-caption text-blue-400 normal-case font-normal mt-0.5">
