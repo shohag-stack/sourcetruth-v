@@ -241,6 +241,8 @@ export default async function TrafficAnalyticsPage({
     pageviewsQuery = pageviewsQuery.eq("browser", filterBrowser);
   if (filterOS) pageviewsQuery = pageviewsQuery.eq("os", filterOS);
   if (filterPath) pageviewsQuery = pageviewsQuery.eq("path", filterPath);
+  // if (filterReferrer)
+  //   pageviewsQuery = pageviewsQuery.like("referrer", `%${filterReferrer}%`);
 
   if (filterReferrer === "direct") {
   pageviewsQuery = pageviewsQuery.or("referrer.is.null,referrer.eq.");

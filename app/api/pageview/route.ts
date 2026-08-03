@@ -101,6 +101,7 @@ export async function POST(req: NextRequest) {
 
     const isNewVisitor = (prevVisits ?? 0) === 0
 
+
     // ── 5. Insert pageview ────────────────────────────────────
     await createServiceClient()
       .from('pageviews')
