@@ -27,6 +27,8 @@ import { PROVIDER_META } from "@/lib/provider";
 import { SourceBadge } from "@/lib/sourceBadge";
 import { avatarUrl } from "@/lib/avatarUrl";
 import Image from "next/image";
+import { getUsage } from "@/lib/utils/checkLimit";
+import { UpgradeWall } from "@/components/upgrade/Upgrade";
 
 // Shared column template — used by both the header row and every data
 // row so widths can never drift between them. Do not set per-cell
@@ -233,6 +235,19 @@ export default async function RevenuePage() {
   const channelStats = Array.from(sourceStats.values())
     .filter((s) => s.clicks > 0 || s.conversions > 0)
     .sort((a, b) => b.revenueCents - a.revenueCents);
+
+
+
+    const { plan, limit, usage, isOverLimit } = await getUsage(user.id, site.id)
+
+    if (isOverLimit) {
+    return (
+      <AppShell>
+        <UpgradeWall usage={usage} limit={limit} plan={plan} />
+      </AppShell>
+    )
+  }
+
 
   return (
     <AppShell>

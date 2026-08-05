@@ -6,8 +6,18 @@ import crypto from "crypto";
 export async function POST(request: Request) {
   const rawBody = await request.text();
   const signature = request.headers.get("x-signature") ?? "";
+
+    const supabase = createServiceClient();
+
+    const { data: payment_connection } = await supabase
+    .from("payment_connections")
+    .select("webhook_secret, site_id")
+    .eq("provider", "lemon_squeezy")
+    .maybeSingle();
+
+
   const digest = crypto
-    .createHmac("sha256", process.env.LEMONSQUEEZY_WEBHOOK_SECRET!)
+    .createHmac("sha256", payment_connection?.webhook_secret!)
     .update(rawBody)
     .digest("hex");
 
@@ -23,7 +33,6 @@ export async function POST(request: Request) {
   const orderId = String(payload.data.id);
   const amountCents = attrs.total; // LS sends total already in cents
 
-  const supabase = createServiceClient();
 
   const { data: conn } = await supabase
     .from("payment_connections")

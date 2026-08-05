@@ -1,7 +1,7 @@
 'use client'
 import Link from 'next/link'
 import { usePathname, useRouter } from 'next/navigation'
-import { cn, formatMoneyFull, trendLabel } from '@/lib/utils'
+import { cn, formatMoneyFull, formatNumber, trendLabel } from '@/lib/utils'
 import Image from 'next/image'
 import { createClient } from '@/utils/supabase/client'
 
@@ -23,14 +23,13 @@ const NAV_BOTTOM = [
 // loading-skeleton flash). Exported so AppShell can share the same type.
 export type SidebarData = {
   name: string
-  // NOTE: no subscriptions/billing table or user_metadata.plan field
-  // exists anywhere in the code I've seen, so there's no real source
-  // for plan yet. AppShell falls back to "Free Plan" rather than a
-  // hardcoded, possibly-wrong "Pro Plan" — swap for a real lookup
-  // (user_metadata.plan, a subscriptions table, etc.) once one exists.
   plan: string
   revenueCents: number
   growthPct: number
+  monthlyPageviews: number,
+  usagePct: number,
+  limit: number,
+
 }
 
 export function Sidebar({ data }: { data: SidebarData | null }) {
@@ -46,6 +45,8 @@ export function Sidebar({ data }: { data: SidebarData | null }) {
     router.push('/auth/login')
     router.refresh() // clears any cached client state tied to the old session
   }
+
+
 
   return (
     <aside className="w-[220px] bg-white border-r border-[#E8ECF2] flex flex-col min-h-screen fixed top-0 left-0 z-40">
@@ -139,6 +140,33 @@ export function Sidebar({ data }: { data: SidebarData | null }) {
           </div>
         </div>
       </div>
+
+
+      {/* USAGE BAR DISPLAY */}
+
+      {/* Usage bar in sidebar or dashboard */}
+        <div className="card p-4">
+          <div className="flex justify-between text-body-sm mb-2">
+            <span className="text-muted">Monthly pageviews</span>
+            <span className="text-ink font-medium tabular">
+              {formatNumber(data?.monthlyPageviews ?? 0)} / {formatNumber(data?.limit ?? 0)}
+            </span>
+          </div>
+          <div className="h-2 bg-surface-muted rounded-full overflow-hidden">
+            <div
+              className={`h-full rounded-full transition-all ${
+                (data?.usagePct ?? 0) > 90 ? 'bg-red-500' :
+                (data?.usagePct ?? 0) > 70 ? 'bg-amber-500' : 'bg-primary'
+              }`}
+              style={{ width: `${data?.usagePct}%` }}
+            />
+          </div>
+          {(data?.usagePct?? 0) > 80 && (
+            <p className="text-caption text-amber-600 mt-2">
+              Approaching limit — <a href="/pricing" className="underline">upgrade</a>
+            </p>
+          )}
+        </div>
     </aside>
   )
 }

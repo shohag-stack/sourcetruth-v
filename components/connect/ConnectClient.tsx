@@ -30,9 +30,11 @@ export default function ConnectClient({ site, connections }: ConnectClientProps)
   const [showLsForm, setShowLsForm] = useState(false)
   const [storeId, setStoreId] = useState('')
   const [apiKey, setApiKey] = useState('')
+  const [webhookSecret, setWebhookSecret] = useState('')
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [copied, setCopied] = useState(false)
+  const [copy, setCopy] = useState('')
 
   const lsConnection = connections.find(c => c.provider === 'lemon_squeezy')
 
@@ -51,7 +53,7 @@ export default function ConnectClient({ site, connections }: ConnectClientProps)
     const res = await fetch('/api/connections/lemonsqueezy', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ store_id: storeId, api_key: apiKey, site_id: site.id }),
+      body: JSON.stringify({ store_id: storeId, api_key: apiKey, site_id: site.id, webhook_secret: webhookSecret }),
     })
     const data = await res.json()
 
@@ -76,11 +78,10 @@ export default function ConnectClient({ site, connections }: ConnectClientProps)
     router.refresh()
   }
 
-  function copySnippet() {
+  function copySnippet(content?: string) {
     if (!site) return
-    navigator.clipboard.writeText(
-      `<script src="https://sourcetruth.io/track.js" data-site="${site.site_key}"></script>`
-    )
+    setCopy(content || '')
+    navigator.clipboard.writeText(content || '')
     setCopied(true)
     setTimeout(() => setCopied(false), 2000)
   }
@@ -149,6 +150,26 @@ export default function ConnectClient({ site, connections }: ConnectClientProps)
                         placeholder="Paste your API key" className="input" />
                       <p className="text-caption text-muted normal-case font-normal mt-1">Found in LS Dashboard → Settings → API</p>
                     </div>
+
+                      <div className="bg-surface-muted rounded-xl p-4 font-mono text-[11px] text-body leading-relaxed relative overflow-x-auto">
+                        <pre>{`sourcetruth-v.vercel.app/api/webhook/lemonsqueezy`}</pre>
+                        <button onClick={()=>copySnippet('sourcetruth-v.vercel.app/api/webhook/lemonsqueezy')}
+                          className="absolute top-3 right-3 bg-surface border border-line text-body hover:text-ink text-[11px] px-3 py-1.5 rounded-lg transition-colors shadow-card">
+                          {copied ? '✓ Copied' : 'Copy'}
+                        </button>
+                      </div>
+                      <p className="text-body-sm text-muted mb-4 leading-relaxed">
+                        Paste this URL as url Callback in LS Dashboard → Settings → Webhooks.
+                      </p>
+
+                    <div>
+                      <label className="block text-body-sm font-medium text-body mb-1.5">Webhook Secret</label>
+                      <input type="password" value={webhookSecret} onChange={e => setWebhookSecret(e.target.value)}
+                        placeholder="Paste your webhook secret" className="input" />
+                      <p className="text-caption text-muted normal-case font-normal mt-1">Found in LS Dashboard → Settings → Webhooks</p>
+                    </div>
+
+
                     <button onClick={connectLemonSqueezy} disabled={saving}
                       className="btn-primary text-sm py-2 px-4 w-full disabled:opacity-50">
                       {saving ? 'Verifying...' : 'Verify & Connect'}
@@ -177,8 +198,8 @@ export default function ConnectClient({ site, connections }: ConnectClientProps)
                 Paste this snippet before <code className="bg-surface-muted text-primary px-1 rounded text-xs">&lt;/head&gt;</code> on every page of your website.
               </p>
               <div className="bg-surface-muted rounded-xl p-4 font-mono text-[11px] text-body leading-relaxed relative overflow-x-auto">
-                <pre>{`<script src="https://sourcetruth.io/track.js" data-site="${site.site_key}"></script>`}</pre>
-                <button onClick={copySnippet}
+                <pre>{`<script src="https://sourcetruth-v.vercel.app/track.js" data-site="${site.site_key}"></script>`}</pre>
+                <button onClick={()=>copySnippet(`<script src="https://sourcetruth-v.vercel.app/track.js" data-site="${site.site_key}"></script>`)}
                   className="absolute top-3 right-3 bg-surface border border-line text-body hover:text-ink text-[11px] px-3 py-1.5 rounded-lg transition-colors shadow-card">
                   {copied ? '✓ Copied' : 'Copy'}
                 </button>

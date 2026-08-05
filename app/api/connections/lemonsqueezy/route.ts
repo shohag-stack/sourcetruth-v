@@ -7,7 +7,7 @@ export async function POST(request: Request) {
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
-  const { store_id, api_key, site_id } = await request.json()
+  const { store_id, api_key, site_id, webhook_secret } = await request.json()
   if (!store_id || !api_key || !site_id) {
     return NextResponse.json({ error: 'store_id, api_key, and site_id are required' }, { status: 400 })
   }
@@ -34,6 +34,7 @@ export async function POST(request: Request) {
       site_id,
       provider: 'lemon_squeezy',
       store_id: String(store_id),
+      webhook_secret,
       api_key_encrypted: api_key, // TODO: encrypt before storing — see note below
       account_name: storeName,
       connected: true,
