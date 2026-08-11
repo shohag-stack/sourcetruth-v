@@ -12,6 +12,7 @@ const NAV_MAIN = [
   // { href: '/analytics', label: 'Analytics', icon: '◉' },
   { href: '/visitors', label: 'Visitors', icon: '◉' },
   { href: '/revenue', label: 'Revenue', icon: '$' },
+  { href: '/sales', label: 'Sales', icon: '$' },
 ]
 
 const NAV_BOTTOM = [
