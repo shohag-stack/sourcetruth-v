@@ -1,32 +1,17 @@
 // app/revenue/page.tsx
-import Link from "next/link";
 import { AppShell } from "@/components/layout/AppShell";
-import { countryDisplay, countryFlag } from "@/lib/countryFlag";
 import { createClient } from "@/utils/supabase/server";
 import { redirect } from "next/navigation";
 import {
   formatMoney,
   formatMoneyFull,
   formatNumber,
-  maskEmail,
   pctChange,
-  timeAgo,
-  timeToConvert,
   trendLabel,
 } from "@/lib/utils";
 import { metaFor } from "@/lib/metaFor";
-import {
-  BROWSER_ICON,
-  BROWSER_LABEL,
-  DEVICE_ICON,
-  OS_ICON,
-  OS_LABEL,
-} from "@/lib/analytics";
-import { Monitor } from "lucide-react";
 import { PROVIDER_META } from "@/lib/provider";
 import { SourceBadge } from "@/lib/sourceBadge";
-import { avatarUrl } from "@/lib/avatarUrl";
-import Image from "next/image";
 import { getUsage } from "@/lib/utils/checkLimit";
 import { UpgradeWall } from "@/components/upgrade/Upgrade";
 
@@ -238,12 +223,12 @@ export default async function RevenuePage() {
 
 
 
-    const { plan, limit, usage, isOverLimit } = await getUsage(user.id, site.id)
+    const { plan, usage, isOverLimit } = await getUsage(user.id)
 
     if (isOverLimit) {
     return (
       <AppShell>
-        <UpgradeWall usage={usage} limit={limit} plan={plan} />
+        <UpgradeWall isOverLimit={isOverLimit} usage={usage} plan={plan} />
       </AppShell>
     )
   }

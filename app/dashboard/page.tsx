@@ -374,6 +374,8 @@ export default async function DashboardPage() {
     firstSeenEmail.add(c.customer_email);
   });
 
+
+
   return (
     <AppShell>
       <div className="p-8">

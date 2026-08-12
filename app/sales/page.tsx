@@ -4,7 +4,8 @@ import { createClient } from '@/utils/supabase/server'
 import { redirect } from 'next/navigation'
 import Link from 'next/link'
 import { metaFor } from '@/lib/metaFor'
-import { countryDisplay, countryFlag, countryName } from '@/lib/countryFlag'
+import { countryDisplay} from '@/lib/countryFlag'
+import { UpgradeWall } from '@/components/upgrade/Upgrade'
 import {
     formatMoney,
   formatMoneyFull,
@@ -24,24 +25,13 @@ import { PROVIDER_META } from '@/lib/provider'
 import { avatarUrl } from '@/lib/avatarUrl'
 import { SourceBadge } from '@/lib/sourceBadge'
 import { Monitor } from 'lucide-react'
+import { getUsage } from '@/lib/utils/checkLimit'
 
 const PAGE_SIZE = 4
 
 const GRID_COLS =
   'md:grid md:grid-cols-[minmax(200px,1.5fr)_minmax(160px,1fr)_minmax(140px,1fr)_minmax(100px,0.7fr)_minmax(80px,0.5fr)_minmax(80px,0.5fr)_minmax(80px,0.5fr)] md:gap-4'
 
-function SourceIcon({ meta }: { meta: ReturnType<typeof metaFor> }) {
-  if (meta.iconType === 'direct') return <span className="w-4 h-4">{meta.icon}</span>
-  if (meta.iconType === 'favicon') return <img src={meta.iconUrl} alt="" className="h-4 w-4 rounded-sm" />
-  return <span className="flex h-4 w-4 items-center justify-center text-[11px] font-bold text-muted">{meta.initials}</span>
-}
-
-function dayLabel(days: number | null): string {
-  if (days === null || days === undefined) return '—'
-  if (days === 0) return 'Same day'
-  if (days === 1) return '1 day'
-  return `${days} days`
-}
 
 export default async function SalesPage({
   searchParams,
@@ -189,7 +179,17 @@ export default async function SalesPage({
     isReturning.set(c.id, firstSeenEmail.has(c.customer_email));
     firstSeenEmail.add(c.customer_email);  });
 
-  const TH = 'text-left py-3 text-caption text-muted font-semibold uppercase tracking-widest whitespace-nowrap'
+          const { plan, usage, isOverLimit } = await getUsage(user.id)
+  
+      if (isOverLimit) {
+      return (
+        <AppShell>
+          <UpgradeWall isOverLimit={isOverLimit} usage={usage} plan={plan} />
+        </AppShell>
+      )
+    }
+
+
 
   return (
     <AppShell>

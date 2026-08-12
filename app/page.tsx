@@ -1,106 +1,11 @@
 'use client'
+import { PricingSlider } from '@/components/pricing/PricingSlider'
 // app/page.tsx
 // Full landing page — hero, how it works, features, pricing, reviews, FAQ, newsletter, footer
 
 import Link from 'next/link'
 
 // ─── Data ─────────────────────────────────────────────────────
-
-const PLANS = [
-  {
-    name: 'Free',
-    price: 0,
-    sub: 'Forever free',
-    sites: 1,
-    mav: '5,000',
-    links: 10,
-    history: '30 days',
-    highlight: false,
-    cta: 'Start free',
-    href: '/auth/login',
-    features: [
-      '1 site',
-      '5,000 visitors/month',
-      '10 tracked post links',
-      '30 days history',
-      'Visitor analytics',
-      'Post revenue attribution',
-      'Community support',
-    ],
-    missing: ['Custom domain links', 'API access', 'Priority support'],
-  },
-  {
-    name: 'Starter',
-    price: 19,
-    sub: 'Per month',
-    sites: 3,
-    mav: '50,000',
-    links: 100,
-    history: '90 days',
-    highlight: false,
-    cta: 'Start free trial',
-    href: '/auth/login',
-    features: [
-      '3 sites',
-      '50,000 visitors/month',
-      '100 tracked post links',
-      '90 days history',
-      'Visitor analytics',
-      'Post revenue attribution',
-      'Email support',
-    ],
-    missing: ['Custom domain links', 'API access'],
-  },
-  {
-    name: 'Pro',
-    price: 49,
-    sub: 'Per month',
-    sites: 10,
-    mav: '200,000',
-    links: -1,
-    history: '1 year',
-    highlight: true,
-    cta: 'Start free trial',
-    href: '/auth/login',
-    features: [
-      '10 sites',
-      '200,000 visitors/month',
-      'Unlimited tracked links',
-      '1 year history',
-      'Visitor analytics',
-      'Post revenue attribution',
-      'Custom domain links',
-      'API access',
-      'Priority support',
-    ],
-    missing: [],
-  },
-  {
-    name: 'Agency',
-    price: 99,
-    sub: 'Per month',
-    sites: -1,
-    mav: '500,000',
-    links: -1,
-    history: '2 years',
-    highlight: false,
-    cta: 'Start free trial',
-    href: '/auth/login',
-    features: [
-      'Unlimited sites',
-      '500,000 visitors/month',
-      'Unlimited tracked links',
-      '2 years history',
-      'Visitor analytics',
-      'Post revenue attribution',
-      'Custom domain links',
-      'API access',
-      'White-label reports',
-      'Dedicated support',
-    ],
-    missing: [],
-  },
-]
 
 const REVIEWS = [
   {
@@ -199,22 +104,6 @@ function Stars({ count = 5 }: { count?: number }) {
         </svg>
       ))}
     </div>
-  )
-}
-
-function Check() {
-  return (
-    <svg className="w-4 h-4 text-success flex-shrink-0" viewBox="0 0 20 20" fill="currentColor">
-      <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd"/>
-    </svg>
-  )
-}
-
-function Cross() {
-  return (
-    <svg className="w-4 h-4 text-muted flex-shrink-0" viewBox="0 0 20 20" fill="currentColor">
-      <path fillRule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clipRule="evenodd"/>
-    </svg>
   )
 }
 
@@ -474,85 +363,7 @@ export default function LandingPage() {
       </section>
 
       {/* ── PRICING ──────────────────────────────────────────── */}
-      <section id="pricing" className="bg-surface-muted border-y border-line">
-        <div className="max-w-5xl mx-auto px-6 py-24">
-          <div className="text-center mb-14">
-            <p className="text-caption text-primary uppercase tracking-widest font-semibold mb-3">Pricing</p>
-            <h2 className="text-[36px] font-bold text-ink mb-3">Grow into your plan</h2>
-            <p className="text-body-sm text-muted max-w-md mx-auto">
-              Priced by Monthly Active Visitors — not pageviews. Pay for real people, not bot traffic.
-              All plans include a 14-day free trial.
-            </p>
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-            {PLANS.map(plan => (
-              <div key={plan.name}
-                className={`rounded-2xl p-6 flex flex-col ${
-                  plan.highlight
-                    ? 'bg-primary text-white relative'
-                    : 'card bg-surface'
-                }`}>
-                {plan.highlight && (
-                  <div className="absolute -top-3 left-1/2 -translate-x-1/2 bg-success text-white text-[11px] font-bold px-3 py-1 rounded-full">
-                    Most popular
-                  </div>
-                )}
-
-                <div className="mb-5">
-                  <div className={`text-body-sm font-semibold mb-1 ${plan.highlight ? 'text-white/70' : 'text-muted'}`}>
-                    {plan.name}
-                  </div>
-                  <div className="flex items-baseline gap-1 mb-0.5">
-                    <span className={`text-[32px] font-bold tabular ${plan.highlight ? 'text-white' : 'text-ink'}`}>
-                      {plan.price === 0 ? 'Free' : `$${plan.price}`}
-                    </span>
-                    {plan.price > 0 && (
-                      <span className={`text-body-sm ${plan.highlight ? 'text-white/60' : 'text-muted'}`}>/mo</span>
-                    )}
-                  </div>
-                  <div className={`text-caption ${plan.highlight ? 'text-white/60' : 'text-muted'} normal-case font-normal`}>
-                    {plan.sites === -1 ? 'Unlimited' : plan.sites} sites · {plan.mav} MAV/mo
-                  </div>
-                </div>
-
-                <ul className="space-y-2 flex-1 mb-6">
-                  {plan.features.map(f => (
-                    <li key={f} className="flex items-start gap-2 text-body-sm">
-                      {plan.highlight ? (
-                        <svg className="w-4 h-4 text-white flex-shrink-0 mt-0.5" viewBox="0 0 20 20" fill="currentColor">
-                          <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd"/>
-                        </svg>
-                      ) : <Check />}
-                      <span className={plan.highlight ? 'text-white' : 'text-body'}>{f}</span>
-                    </li>
-                  ))}
-                  {plan.missing.map(f => (
-                    <li key={f} className="flex items-start gap-2 text-body-sm opacity-40">
-                      <Cross />
-                      <span className="text-body">{f}</span>
-                    </li>
-                  ))}
-                </ul>
-
-                <Link href={plan.href}
-                  className={`text-center py-2.5 rounded-xl font-medium text-body-sm transition-all ${
-                    plan.highlight
-                      ? 'bg-white text-primary hover:bg-white/90'
-                      : 'btn-primary'
-                  }`}>
-                  {plan.cta}
-                </Link>
-              </div>
-            ))}
-          </div>
-
-          <p className="text-center text-body-sm text-muted mt-6">
-            All paid plans include a 14-day free trial. No credit card required to start.
-            Cancel anytime.
-          </p>
-        </div>
-      </section>
+      <PricingSlider />
 
       {/* ── FAQ ──────────────────────────────────────────────── */}
       <section id="faq" className="max-w-3xl mx-auto px-6 py-24">
