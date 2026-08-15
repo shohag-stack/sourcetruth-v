@@ -1,54 +1,17 @@
 // app/posts/[id]/page.tsx
 import { AppShell } from '@/components/layout/AppShell'
 import { VisitorRevenueChart, VisitorRevenueDay } from '@/components/charts/VisitorRevenueChart'
-import { countryFlag } from '@/lib/countryFlag'
+import { countryDisplay, countryFlag } from '@/lib/countryFlag'
 import { metaFor } from '@/lib/metaFor'
-import { formatMoney, formatMoneyFull, formatNumber, timeAgo } from '@/lib/utils'
+import { formatMoney, formatMoneyFull, formatNumber, timeAgo, timeToConvert } from '@/lib/utils'
 import { createClient } from '@/utils/supabase/server'
 import { redirect, notFound } from 'next/navigation'
 import Link from 'next/link'
+import { RankedList } from '@/components/analytics/RankedList'
+import { BROWSER_ICON, BROWSER_LABEL, DEVICE_ICON, DEVICE_LABEL, OS_ICON, OS_LABEL } from '@/lib/analytics'
 
 // ─── Ranked list — same pattern as the Traffic Analytics page, reused
 // here scoped to a single post instead of the whole site ──────────
-function RankedList({ title, rows }: { title: string; rows: { label: string; value: number; flag?: string }[] }) {
-  const max = rows[0]?.value ?? 1
-  return (
-    <div className="card p-5">
-      <h2 className="text-heading-sm text-ink mb-4">{title}</h2>
-      {rows.length === 0 ? (
-        <p className="text-body-sm text-muted py-4 text-center">No data yet</p>
-      ) : (
-        <div className="space-y-1">
-          {rows.map((row, i) => {
-            const pct = Math.round((row.value / max) * 100)
-            return (
-              <div key={`${row.label}-${i}`} className="relative flex items-center justify-between px-2 py-2 rounded-lg overflow-hidden">
-                <div className="absolute inset-y-0 left-0 bg-surface-muted rounded-lg" style={{ width: `${pct}%` }} />
-                <span className="relative text-body-sm text-ink flex items-center gap-2">
-                  {row.flag && <span>{row.flag}</span>}
-                  {row.label}
-                </span>
-                <span className="relative text-body-sm text-body flex items-center gap-2 tabular">
-                  {formatNumber(row.value)} <span className="text-muted">|</span> {pct}%
-                </span>
-              </div>
-            )
-          })}
-        </div>
-      )}
-    </div>
-  )
-}
-
-function timeToConvert(firstSeenAt: string | null, receivedAt: string): string | null {
-  if (!firstSeenAt) return null
-  const ms = new Date(receivedAt).getTime() - new Date(firstSeenAt).getTime()
-  if (ms < 0) return null
-  const seconds = ms / 1000
-  if (seconds < 3600) return 'Same visit'
-  if (seconds < 86400) return `${Math.round(seconds / 3600)}h`
-  return `${Math.round(seconds / 86400)}d`
-}
 
 export default async function PostDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params
@@ -89,23 +52,74 @@ console.log('click rows:', clicks)
   // ── Sold via — real sources that drove sales for this post ──
   const soldVia = Array.from(new Set(conversionRows.map(c => c.source ?? 'direct')))
 
-  // ── Country / Device / Browser / OS breakdowns, scoped to this post's clicks ──
-  function rankBy<T extends { [k: string]: any }>(rows: T[], key: keyof T, label: (v: string) => string, flag?: (v: string) => string) {
-    const counts = new Map<string, number>()
-    rows.forEach(r => {
-      const v = (r[key] as string) ?? 'unknown'
-      counts.set(v, (counts.get(v) ?? 0) + 1)
-    })
-    return Array.from(counts.entries())
-      .sort((a, b) => b[1] - a[1])
-      .slice(0, 8)
-      .map(([code, value]) => ({ label: label(code), value, flag: flag?.(code) }))
-  }
 
-  const topCountries = rankBy(clickRows, 'country', c => (c === 'unknown' ? 'Unknown' : c), c => countryFlag(c))
-  const topDevices = rankBy(clickRows, 'device', d => d.charAt(0).toUpperCase() + d.slice(1))
-  const topBrowsers = rankBy(clickRows, 'browser', b => b.charAt(0).toUpperCase() + b.slice(1))
-  const topOS = rankBy(clickRows, 'os', o => o.charAt(0).toUpperCase() + o.slice(1))
+    // ── Top countries ─────────────────────────────────────────
+  const countryCounts = new Map<string, number>();
+  clickRows.forEach((r) => {
+    const c = r.country ?? "unknown";
+    countryCounts.set(c, (countryCounts.get(c) ?? 0) + 1);
+  });
+
+
+  const topCountries = Array.from(countryCounts.entries())
+    .sort((a, b) => b[1] - a[1])
+    .slice(0, 8)
+    .map(([code, value]) => ({
+      label: code === "unknown" ? "Unknown" : countryDisplay(code) ,
+      value,
+      filterValue: code,
+    }));
+
+
+
+
+      // ── Top browsers ──────────────────────────────────────────
+      const browserCounts = new Map<string, number>();
+      clickRows.forEach((r) => {
+        const b = r.browser ?? "unknown";
+        browserCounts.set(b, (browserCounts.get(b) ?? 0) + 1);
+      });
+    // Browsers — chrome, safari, firefox
+    const topBrowsers = Array.from(browserCounts.entries())
+      .sort((a, b) => b[1] - a[1])
+      .map(([label, value]) => ({
+        label: BROWSER_LABEL[label] ?? label,
+        value,
+        icon: BROWSER_ICON[label] ?? null,
+        filterValue: label,
+      }))
+    
+      // ── Top OS ────────────────────────────────────────────────
+      const osCounts = new Map<string, number>();
+      clickRows.forEach((r) => {
+        const o = r.os ?? "unknown";
+        osCounts.set(o, (osCounts.get(o) ?? 0) + 1);
+      });
+    const topOS = Array.from(osCounts.entries())
+      .sort((a, b) => b[1] - a[1])
+      .map(([label, value]) => ({
+        label: OS_LABEL[label] ?? label,
+        value,
+        icon: OS_ICON[label] ?? null,
+        filterValue: label,
+      }))
+
+
+
+
+
+      const deviceCounts = new Map<string, number>();
+      clickRows.forEach((r) => {
+        const d = r.device ?? "unknown";
+        deviceCounts.set(d, (deviceCounts.get(d) ?? 0) + 1);
+      });
+      const topDevices = Array.from(deviceCounts.entries())
+        .sort((a, b) => b[1] - a[1])
+        .map(([label, value]) => ({
+          label: DEVICE_LABEL[label],
+          value,
+          icon: DEVICE_ICON[label]
+        }));
 
   // ── Clicks + Revenue combo chart, last 30 days, daily buckets —
   // reuses VisitorRevenueChart: "visitors" here means clicks on this
@@ -250,12 +264,12 @@ console.log('click rows:', clicks)
 
         {/* Country / device / browser / OS breakdown for this post */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-4">
-          <RankedList title="Countries" rows={topCountries} />
-          <RankedList title="Devices" rows={topDevices} />
+          <RankedList title="Countries" rows={topCountries} filterKey='country' />
+          <RankedList title="Devices" rows={topDevices} filterKey='device' />
         </div>
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-6">
-          <RankedList title="Browsers" rows={topBrowsers} />
-          <RankedList title="OS" rows={topOS} />
+          <RankedList title="Browsers" rows={topBrowsers} filterKey='browser' />
+          <RankedList title="OS" rows={topOS} filterKey='os' />
         </div>
 
         {/* Sales for this post */}
