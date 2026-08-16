@@ -25,6 +25,16 @@
     if (!referrer) return "direct"; // also hit by in-app browsers that strip referrer entirely
     try {
       const host = new URL(referrer).hostname.replace(/^www\./, "");
+      const ownHost = window.location.hostname.replace(/^www\./, "");
+      // Internal navigation (clicking from one page on this site to
+      // another) sets document.referrer to this SAME site — that's not
+      // an acquisition source, it's just "the page they were already
+      // on." Without this check, browsing around your own site shows
+      // your own domain as the "referrer," and worse, that same value
+      // gets sent as st_current_source/st_click_source on checkout
+      // links, meaning it could wrongly get credited as the purchase
+      // source too.
+      if (host === ownHost) return "direct";
       return host; // e.g. "marclou.com" — a real backlink, not a recognized platform
     } catch (e) {
       return "direct";
@@ -126,32 +136,71 @@
   }
 
   // ── Pageview ────────────────────────────────────────────────
-  const startTime = Date.now();
+  // Wrapped in a function (not just an inline fetch) so it can be
+  // re-fired on every SPA route change below — previously this only
+  // ever ran once, when the script itself first loaded, so a visitor
+  // navigating between client-side-routed pages (Next.js/React
+  // router, no full page reload) never produced a second pageview at
+  // all.
+  let startTime = Date.now();
 
-  fetch(`${ORIGIN}/api/pageview`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({
-      site_key: SITE_KEY,
-      session_id: sessionId,
-      path: window.location.pathname,
-      referrer: document.referrer,
-      screen_width: window.screen.width,
-    }),
-  })
-    .then((r) => r.json())
-    .then((data) => {
-      // Store country/city once when first received
-      const existing = getTouch() || touch;
-      if (!existing.country && data.country) {
-        existing.country = data.country;
-        existing.city = data.city ?? null;
-        touch = existing;
-        localStorage.setItem(TOUCH_KEY, JSON.stringify(existing));
-      }
+  function trackPageview() {
+    startTime = Date.now();
+    fetch(`${ORIGIN}/api/pageview`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        site_key: SITE_KEY,
+        session_id: sessionId,
+        path: window.location.pathname,
+        referrer: document.referrer,
+        screen_width: window.screen.width,
+      }),
     })
+      .then((r) => r.json())
+      .then((data) => {
+        // Store country/city once when first received
+        const existing = getTouch() || touch;
+        if (!existing.country && data.country) {
+          existing.country = data.country;
+          existing.city = data.city ?? null;
+          touch = existing;
+          localStorage.setItem(TOUCH_KEY, JSON.stringify(existing));
+        }
+      })
+      .catch(() => {});
+  }
 
-    .catch(() => {});
+  trackPageview();
+
+  // ── SPA route-change detection ────────────────────────────────
+  // Next.js/React-style client routing navigates via history.pushState
+  // / replaceState instead of a full document load, so this script
+  // (which only executes once per real page load) would otherwise
+  // never see later route changes. Patch both, plus listen for
+  // back/forward navigation, and fire a fresh pageview whenever the
+  // path actually changes.
+  let lastTrackedPath = window.location.pathname;
+
+  function handleRouteChange() {
+    if (window.location.pathname === lastTrackedPath) return;
+    lastTrackedPath = window.location.pathname;
+    trackPageview();
+  }
+
+  const originalPushState = history.pushState;
+  history.pushState = function (...args) {
+    originalPushState.apply(this, args);
+    handleRouteChange();
+  };
+
+  const originalReplaceState = history.replaceState;
+  history.replaceState = function (...args) {
+    originalReplaceState.apply(this, args);
+    handleRouteChange();
+  };
+
+  window.addEventListener("popstate", handleRouteChange);
 
   // ── Session duration ────────────────────────────────────────
   window.addEventListener("visibilitychange", function () {
@@ -211,13 +260,8 @@
   });
 
   // ── Attach attribution to Lemon Squeezy checkout links ───────
-  // CHANGED: this used to `return` immediately if there was no tracked-
-  // link slug, meaning organic/direct visitors got ZERO attribution data
-  // on their purchase. That's the actual gap vs. DataFast — they
-  // attribute every visitor, not just ones who clicked a special link.
-  // Now: st_ref/st_source (post-level) only attach when a slug exists,
-  // but device/os/browser/first_seen/touchpoints ALWAYS attach, for
-  // every visitor.
+  // device/os/browser/first_seen/touchpoints/session_id ALWAYS attach,
+  // for every visitor, whether or not they came through a tracked link.
   const LS_LINK_PATTERN = /lemonsqueezy\.com\/(checkout|buy)/i;
 
   function isLemonSqueezyLink(href) {
@@ -245,6 +289,12 @@
         if (slug) url.searchParams.set("checkout[custom][st_ref]", slug);
         if (SITE_KEY)
           url.searchParams.set("checkout[custom][st_site]", SITE_KEY);
+
+        // Lets the app match this purchase back to the exact live
+        // session that made it (see Realtime Visitors — shows a real
+        // masked email instead of the anonymized pseudonym for
+        // sessions that converted).
+        url.searchParams.set("checkout[custom][st_session_id]", sessionId);
 
         if (clickSource) {
           url.searchParams.set(
