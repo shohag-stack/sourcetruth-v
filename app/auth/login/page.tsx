@@ -1,10 +1,16 @@
 'use client'
 // app/auth/login/page.tsx
-import { useState } from 'react'
+import { Suspense, useState } from 'react'
 import { createClient } from '@/utils/supabase/client'
 import { useRouter, useSearchParams } from 'next/navigation'
 
-export default function LoginPage() {
+// Next.js requires any component that calls useSearchParams() to be
+// wrapped in a <Suspense> boundary, or the build fails with
+// "useSearchParams() should be wrapped in a suspense boundary" during
+// static prerendering. Splitting the page into a thin outer default
+// export (no hooks) + this inner component (all the actual logic)
+// satisfies that requirement.
+function LoginForm() {
   const [email, setEmail] = useState('')
   const [loading, setLoading] = useState(false)
   const [sent, setSent] = useState(false)
@@ -167,5 +173,20 @@ export default function LoginPage() {
         </p>
       </div>
     </div>
+  )
+}
+
+// Lightweight fallback shown for the brief moment before search params
+// resolve — same background as the real page so there's no layout
+// flash, just no interactive content yet.
+function LoginFormFallback() {
+  return <div className="min-h-screen bg-[#F8F9FC]" />
+}
+
+export default function LoginPage() {
+  return (
+    <Suspense fallback={<LoginFormFallback />}>
+      <LoginForm />
+    </Suspense>
   )
 }
