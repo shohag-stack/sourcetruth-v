@@ -262,12 +262,12 @@ export default function PostClient({
                       ))}
                     </div>
 
-                    <div className="revenue-pulse mb-3">
+                    {/* <div className="revenue-pulse mb-3">
                       <div
                         className="revenue-pulse-fill"
                         style={{ width: `${revPct}%` }}
                       />
-                    </div>
+                    </div> */}
                   </>
                 ) : (
                   <div className="bg-surface-muted rounded-xl p-3 mb-3">

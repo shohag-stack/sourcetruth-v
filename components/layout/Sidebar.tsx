@@ -164,7 +164,7 @@ export function Sidebar({ data }: { data: SidebarData | null }) {
           </div>
           {(data?.usagePct?? 0) > 80 && (
             <p className="text-caption text-amber-600 mt-2">
-              Approaching limit — <a href="/pricing" className="underline">upgrade</a>
+              Approaching limit — <a href="/settings/billing" className="underline">upgrade</a>
             </p>
           )}
         </div>

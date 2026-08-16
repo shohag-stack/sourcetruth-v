@@ -144,4 +144,48 @@
   .shadow-card-hover {
     box-shadow: 0 4px 12px rgba(26, 26, 26, 0.08), 0 2px 4px rgba(26, 26, 26, 0.04);
   }
+
+  /* Pricing slider — the fill percentage is set dynamically from React
+     via a --slider-fill custom property on the element's inline style
+     (see PricingSlider.tsx), not computed here. A static CSS file has
+     no JS engine, so the old `${...}` template-literal expression that
+     worked inside a <style jsx> block cannot work here at all. Also
+     fixed: this referenced a nonexistent --color-primary variable
+     (falling back to a hardcoded blue, #6366f1) instead of this
+     project's actual --primary-hex brand orange. */
+  .pricing-slider {
+    -webkit-appearance: none;
+    appearance: none;
+    height: 6px;
+    border-radius: 9999px;
+    background: linear-gradient(
+      to right,
+      var(--primary-hex) 0%,
+      var(--primary-hex) var(--slider-fill, 0%),
+      var(--gray-light) var(--slider-fill, 0%),
+      var(--gray-light) 100%
+    );
+    outline: none;
+    cursor: pointer;
+  }
+  .pricing-slider::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    appearance: none;
+    width: 20px;
+    height: 20px;
+    border-radius: 9999px;
+    background: white;
+    border: 3px solid var(--primary-hex);
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
+    cursor: pointer;
+  }
+  .pricing-slider::-moz-range-thumb {
+    width: 20px;
+    height: 20px;
+    border-radius: 9999px;
+    background: white;
+    border: 3px solid var(--primary-hex);
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
+    cursor: pointer;
+  }
 }

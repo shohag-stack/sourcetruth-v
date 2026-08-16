@@ -5,13 +5,6 @@ import { useState } from 'react'
 import Link from 'next/link'
 import { FEATURES, PLANS } from '@/lib/pricing'
 
-// ── PLANS, in ascending order — the slider snaps to these indices.
-// Prices/breakpoints below are PLACEHOLDERS, not real pricing decisions
-// — swap in your actual numbers. Keeping "features" shared across every
-// tier for now since you said this is events-only pricing for now and
-// more feature-gating comes later; split into per-tier feature/locked
-// lists later if/when that's needed, same shape as the old PLANS array.
-
 function formatEvents(n: number): string {
   if (n >= 1_000_000) return `${n / 1_000_000}M`
   if (n >= 1_000) return `${n / 1_000}K`
@@ -51,6 +44,7 @@ export function PricingSlider() {
               value={index}
               onChange={(e) => setIndex(Number(e.target.value))}
               className="pricing-slider w-full"
+              style={{ '--slider-fill': `${(index / (PLANS.length - 1)) * 100}%` } as React.CSSProperties}
               aria-label="Monthly events volume"
             />
 
@@ -70,10 +64,7 @@ export function PricingSlider() {
           </div>
 
           {/* ── Single dynamic card ── */}
-          <div
-            className={`rounded-2xl p-7 flex flex-col relative transition-colors card bg-surface shadow-card-hover'
-            }`}
-          >
+          <div className="rounded-2xl p-7 flex flex-col relative transition-colors card bg-surface shadow-card-hover">
             {!isFree && (
               <div className="absolute -top-3 left-1/2 -translate-x-1/2 bg-success text-ink text-[11px] font-bold px-4 py-1.5 rounded-full whitespace-nowrap">
                 {tier.name}
@@ -81,18 +72,18 @@ export function PricingSlider() {
             )}
 
             <div className="mb-6">
-              <div className={`text-caption font-bold uppercase tracking-widest mb-3 text-muted}`}>
+              <div className="text-caption font-bold uppercase tracking-widest mb-3 text-muted">
                 {tier.name}
               </div>
               <div className="flex items-baseline gap-1 mb-2">
-                <span className={`text-[44px] font-bold leading-none tabular text-ink}`}>
+                <span className="text-[44px] font-bold leading-none tabular text-ink">
                   {tier.price === 0 ? '$0' : `$${tier.price}`}
                 </span>
-                <span className={`text-body-sm ml-1 text-muted`}>
+                <span className="text-body-sm ml-1 text-muted">
                   / month
                 </span>
               </div>
-              <div className={`flex items-center gap-3 text-body-sm text-muted`}>
+              <div className="flex items-center gap-3 text-body-sm text-muted">
                 <span>{tier.sites === 1 ? '1 site' : `${tier.sites} sites`}</span>
                 <span>·</span>
                 <span>{formatEvents(tier.events)} events</span>
@@ -103,24 +94,23 @@ export function PricingSlider() {
 
             <ul className="space-y-2.5 flex-1 mb-6">
               <li className="flex items-start gap-2 text-body-sm">
-                  <svg
-                    className={`w-4 h-4 flex-shrink-0 mt-0.5 text-success`}
-                    viewBox="0 0 20 20"
-                    fill="currentColor"
-                  >
-                    <path
-                      fillRule="evenodd"
-                      d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z"
-                      clipRule="evenodd"
-                    />
-                  </svg>
-                  <span className={"text-body"}> {tier.posts} posts & tracked links</span>
-
-                </li>
+                <svg
+                  className="w-4 h-4 flex-shrink-0 mt-0.5 text-success"
+                  viewBox="0 0 20 20"
+                  fill="currentColor"
+                >
+                  <path
+                    fillRule="evenodd"
+                    d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z"
+                    clipRule="evenodd"
+                  />
+                </svg>
+                <span className="text-body"> {tier.posts} posts & tracked links</span>
+              </li>
               {FEATURES.map((f) => (
                 <li key={f} className="flex items-start gap-2 text-body-sm">
                   <svg
-                    className={`w-4 h-4 flex-shrink-0 mt-0.5 text-success`}
+                    className="w-4 h-4 flex-shrink-0 mt-0.5 text-success"
                     viewBox="0 0 20 20"
                     fill="currentColor"
                   >
@@ -130,20 +120,20 @@ export function PricingSlider() {
                       clipRule="evenodd"
                     />
                   </svg>
-                  <span className={"text-body"}>{f}</span>
+                  <span className="text-body">{f}</span>
                 </li>
               ))}
             </ul>
 
             <Link
               href={tier.href}
-              className={`text-center py-3 rounded-xl font-medium text-body-sm transition-all btn-primary`}
+              className="text-center py-3 rounded-xl font-medium text-body-sm transition-all btn-primary"
             >
               {tier.cta}
             </Link>
 
             {tier.price > 0 && (
-              <p className={`text-center text-caption mt-3 normal-case font-normal text-muted`}>
+              <p className="text-center text-caption mt-3 normal-case font-normal text-muted">
                 $0.00 due today · Cancel anytime
               </p>
             )}
@@ -159,44 +149,6 @@ export function PricingSlider() {
           </p>
         </div>
       </div>
-
-      <style jsx>{`
-        .pricing-slider {
-          -webkit-appearance: none;
-          appearance: none;
-          height: 6px;
-          border-radius: 9999px;
-          background: linear-gradient(
-            to right,
-            var(--color-primary, #6366f1) 0%,
-            var(--color-primary, #6366f1) ${(index / (PLANS.length - 1)) * 100}%,
-            #e2e8f0 ${(index / (PLANS.length - 1)) * 100}%,
-            #e2e8f0 100%
-          );
-          outline: none;
-          cursor: pointer;
-        }
-        .pricing-slider::-webkit-slider-thumb {
-          -webkit-appearance: none;
-          appearance: none;
-          width: 20px;
-          height: 20px;
-          border-radius: 9999px;
-          background: white;
-          border: 3px solid var(--color-primary, #6366f1);
-          box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
-          cursor: pointer;
-        }
-        .pricing-slider::-moz-range-thumb {
-          width: 20px;
-          height: 20px;
-          border-radius: 9999px;
-          background: white;
-          border: 3px solid var(--color-primary, #6366f1);
-          box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
-          cursor: pointer;
-        }
-      `}</style>
     </section>
   )
 }

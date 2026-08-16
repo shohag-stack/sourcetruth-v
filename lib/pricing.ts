@@ -31,7 +31,7 @@ export const PLANS: PlanConfig[] = [
     sites: 1,
     posts: 5,
     cta: 'Get started free',
-    href: '/auth/signup',
+    href: '/auth/login',
   },
   {
     id: 'starter',
@@ -40,9 +40,9 @@ export const PLANS: PlanConfig[] = [
     events: Number(process.env.NEXT_PUBLIC_STARTER),
     retentionDays: 90,
     sites: 1,
-    posts: 50,
+    posts: 100,
     cta: 'Get started now',
-    href: '/auth/signup?plan=starter',
+    href: '/auth/login?plan=starter',
   },
   {
     id: 'growth',
@@ -51,9 +51,9 @@ export const PLANS: PlanConfig[] = [
     posts: 500,
     events: Number(process.env.NEXT_PUBLIC_GROWTH),
     retentionDays: 365,
-    sites: 1,
+    sites: 400,
     cta: 'Get started now',
-    href: '/auth/signup?plan=growth',
+    href: '/auth/login?plan=growth',
   },
 ]
 

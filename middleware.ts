@@ -11,6 +11,11 @@ const PROTECTED = [
   "/settings",
 ];
 const AUTH_PAGES = ["/auth/login"];
+// Only the bare root — NOT the whole marketing site. Logged-in users
+// can still reach /pricing anchors, /terms, /privacy, a future /blog,
+// etc.; there's just no reason to show them the hero/signup CTA again
+// once they're already signed in and land on "/" specifically.
+const HOME = "/";
 
 export async function middleware(request: NextRequest, response: NextResponse) {
   
@@ -40,6 +45,7 @@ export async function middleware(request: NextRequest, response: NextResponse) {
   const path = request.nextUrl.pathname
   const isProtected = PROTECTED.some(p => path.startsWith(p))
   const isAuthPage = AUTH_PAGES.some(p => path.startsWith(p))
+  const isHome = path === HOME
 
   if (isProtected && !user) {
     const url = request.nextUrl.clone()
@@ -49,6 +55,12 @@ export async function middleware(request: NextRequest, response: NextResponse) {
   }
 
   if (isAuthPage && user) {
+    const url = request.nextUrl.clone()
+    url.pathname = '/dashboard'
+    return NextResponse.redirect(url)
+  }
+
+  if (isHome && user) {
     const url = request.nextUrl.clone()
     url.pathname = '/dashboard'
     return NextResponse.redirect(url)

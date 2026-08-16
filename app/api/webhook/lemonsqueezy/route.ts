@@ -7,44 +7,61 @@ export async function POST(request: Request) {
   const rawBody = await request.text();
   const signature = request.headers.get("x-signature") ?? "";
 
-    const supabase = createServiceClient();
+  // ── Parse FIRST — we need attrs.store_id to know WHICH connection's
+  // webhook_secret to verify against. Every user's own Lemon Squeezy
+  // store has its own secret, so the signature can't be checked until
+  // we know which store this request claims to be from. ──
+  let payload: any;
+  try {
+    payload = JSON.parse(rawBody);
+  } catch {
+    return NextResponse.json({ error: "invalid json" }, { status: 400 });
+  }
 
-    const { data: payment_connection } = await supabase
-    .from("payment_connections")
-    .select("webhook_secret, site_id")
-    .eq("provider", "lemon_squeezy")
-    .maybeSingle();
+  const attrs = payload?.data?.attributes;
+  const storeId = attrs?.store_id != null ? String(attrs.store_id) : null;
 
+  if (!storeId) {
+    return NextResponse.json({ error: "missing store_id" }, { status: 400 });
+  }
 
-  const digest = crypto
-    .createHmac("sha256", payment_connection?.webhook_secret!)
-    .update(rawBody)
-    .digest("hex");
+  const supabase = createServiceClient();
 
-  if (signature !== digest)
-    return NextResponse.json({ error: "invalid signature" }, { status: 401 });
-
-  const payload = JSON.parse(rawBody);
-  if (payload.meta?.event_name !== "order_created")
-    return NextResponse.json({ ok: true });
-
-  const attrs = payload.data.attributes;
-  const email = attrs.user_email?.toLowerCase().trim();
-  const orderId = String(payload.data.id);
-  const amountCents = attrs.total; // LS sends total already in cents
-
-
+  // Single query for the connection this webhook actually belongs to —
+  // previously this was two separate queries, and the FIRST one (for
+  // webhook_secret) didn't filter by store_id at all, so it verified
+  // every incoming webhook against an arbitrary connection's secret
+  // instead of the correct one. With more than one Lemon Squeezy
+  // connection in the table, that first query would also outright
+  // error, since .maybeSingle() requires 0 or exactly 1 match.
   const { data: conn } = await supabase
     .from("payment_connections")
-    .select("user_id, site_id")
+    .select("webhook_secret, user_id, site_id")
     .eq("provider", "lemon_squeezy")
-    .eq("store_id", String(attrs.store_id))
+    .eq("store_id", storeId)
     .maybeSingle();
 
   if (!conn) {
-    console.error("No payment_connections match for store_id:", attrs.store_id);
+    console.error("No payment_connections match for store_id:", storeId);
     return NextResponse.json({ ok: true }); // acknowledge receipt so LS doesn't retry forever
   }
+
+  const digest = crypto
+    .createHmac("sha256", conn.webhook_secret!)
+    .update(rawBody)
+    .digest("hex");
+
+  if (signature !== digest) {
+    return NextResponse.json({ error: "invalid signature" }, { status: 401 });
+  }
+
+  if (payload.meta?.event_name !== "order_created") {
+    return NextResponse.json({ ok: true });
+  }
+
+  const email = attrs.user_email?.toLowerCase().trim();
+  const orderId = String(payload.data.id);
+  const amountCents = attrs.total; // LS sends total already in cents
 
   // ── Attribution: custom_data.st_ref is the primary signal now ──
   // This is what track.js writes onto the Lemon.js checkout link before

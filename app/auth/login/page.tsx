@@ -2,7 +2,7 @@
 // app/auth/login/page.tsx
 import { useState } from 'react'
 import { createClient } from '@/utils/supabase/client'
-import { useRouter } from 'next/navigation'
+import { useRouter, useSearchParams } from 'next/navigation'
 
 export default function LoginPage() {
   const [email, setEmail] = useState('')
@@ -11,6 +11,19 @@ export default function LoginPage() {
   const [error, setError] = useState('')
   const router = useRouter()
   const supabase = createClient()
+  const searchParams = useSearchParams()
+
+  // Carried over from the pricing page's "Get started now" links
+  // (?plan=starter / ?plan=growth). Forwarded through the whole auth
+  // round-trip so /auth/callback can send them straight into checkout
+  // for that plan instead of dropping them on the dashboard first.
+  const plan = searchParams.get('plan')
+
+  function callbackUrl() {
+    const url = new URL('/auth/callback', window.location.origin)
+    if (plan) url.searchParams.set('plan', plan)
+    return url.toString()
+  }
 
   async function handleMagicLink() {
     if (!email.trim()) return
@@ -20,7 +33,7 @@ export default function LoginPage() {
     const { error } = await supabase.auth.signInWithOtp({
       email,
       options: {
-        emailRedirectTo: `${window.location.origin}/auth/callback`,
+        emailRedirectTo: callbackUrl(),
       },
     })
 
@@ -39,7 +52,7 @@ export default function LoginPage() {
     const { error } = await supabase.auth.signInWithOAuth({
       provider: 'google',
       options: {
-        redirectTo: `${window.location.origin}/auth/callback`,
+        redirectTo: callbackUrl(),
       },
     })
     if (error) {
@@ -78,8 +91,14 @@ export default function LoginPage() {
         {/* Logo */}
         <div className="text-center mb-8">
           <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-[#6366F1] to-[#8B5CF6] flex items-center justify-center text-white font-bold text-lg mx-auto mb-3">S</div>
-          <h1 className="text-2xl font-bold text-[#0F172A]">Sign in to SourceTruth</h1>
-          <p className="text-[#94A3B8] text-sm mt-1">Revenue attribution for your social posts</p>
+          <h1 className="text-2xl font-bold text-[#0F172A]">
+            {plan ? 'Create your account' : 'Sign in to SourceTruth'}
+          </h1>
+          <p className="text-[#94A3B8] text-sm mt-1">
+            {plan
+              ? `You're one step away from the ${plan.charAt(0).toUpperCase()}${plan.slice(1)} plan`
+              : 'Revenue attribution for your social posts'}
+          </p>
         </div>
 
         <div className="bg-white border border-[#E8ECF2] rounded-2xl p-8 shadow-card">
