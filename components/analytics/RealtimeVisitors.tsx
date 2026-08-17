@@ -11,10 +11,11 @@ import { avatarUrl } from "@/lib/avatarUrl";
 import Image from "next/image";
 
 // ── Deterministic, anonymized visitor identity ───────────────────
-// We don't have (and shouldn't show) a real name — session_id is
-// hashed into a friendly "Bold Falcon"-style pseudonym + avatar color,
-// stable for the life of that session, same idea as Codespaces/PR
-// preview names.
+// Fallback for sessions that haven't converted — session_id is hashed
+// into a friendly "Bold Falcon"-style pseudonym + avatar color, stable
+// for the life of that session, same idea as Codespaces/PR preview
+// names. Sessions that HAVE converted show their real customerEmail
+// instead (see `displayName` below).
 const ADJECTIVES = [
   "Bold",
   "Wise",
@@ -87,6 +88,7 @@ type Visitor = {
   visitedAt: string;
   isNewVisitor: boolean;
   pageviewsThisSession: number;
+  customerEmail: string | null;
 };
 
 function sourceFromReferrer(referrer: string | null): string {
@@ -185,6 +187,7 @@ export function RealtimeVisitors() {
           <AnimatePresence initial={false} mode="popLayout">
             {visitors.map((v) => {
               const identity = identityFor(v.sessionId);
+              const displayName = v.customerEmail ?? identity.name;
               const source = metaFor(sourceFromReferrer(v.referrer));
 
               return (
@@ -199,8 +202,8 @@ export function RealtimeVisitors() {
                 >
                   <div className="relative flex-shrink-0">
                     <img
-                          src={avatarUrl(v.sessionId)}
-                          alt={v.sessionId}
+                          src={avatarUrl(v.customerEmail ?? v.sessionId)}
+                          alt={displayName}
                           width={40}
                           height={40}
                           className="w-9 h-9 rounded-full bg-surface-muted"
@@ -218,8 +221,11 @@ export function RealtimeVisitors() {
                   <div className="flex flex-col min-w-0 flex-1 gap-0.5">
                     <div className="flex items-center gap-2 flex-wrap">
                       <span className="text-body-sm font-semibold text-ink truncate">
-                        {identity.name}
+                        {displayName}
                       </span>
+                      {v.customerEmail && (
+                        <span className="badge-primary-tint">Customer</span>
+                      )}
                       {v.isNewVisitor ? (
                         <span className="badge-primary-tint">New</span>
                       ) : <span className="badge-success">Returning</span> }
