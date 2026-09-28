@@ -1,4 +1,4 @@
-// lib/plans.ts
+// lib/pricing.ts
 // Single source of truth for plan limits. Import this everywhere a
 // plan's price/events/retention/sites is needed — the marketing
 // pricing slider, the pageview event-limit check, and the usage/
@@ -13,12 +13,20 @@ export interface PlanConfig {
   id: PlanId
   name: string
   price: number
-  events: number,
-  posts: number,
+  // Monthly pageview cap. Infinity for unlimited — a real JS number, so
+  // every limit check (`count < plan.events`) just works without a
+  // special "null means unlimited" branch anywhere it's used.
+  events: number
+  posts: number
   retentionDays: number
   sites: number
   cta: string
   href: string
+}
+
+export function pageviewsLimitFromDb(dbValue: number | null | undefined): number {
+  if (dbValue === null) return Infinity
+  return dbValue ?? PLANS[0].events // no row yet → Free's cap
 }
 
 export const PLANS: PlanConfig[] = [
@@ -26,7 +34,7 @@ export const PLANS: PlanConfig[] = [
     id: 'free',
     name: 'Free',
     price: 0,
-    events: Number(process.env.NEXT_PUBLIC_FREE),
+    events: 500,
     retentionDays: 15,
     sites: 1,
     posts: 5,
@@ -37,7 +45,7 @@ export const PLANS: PlanConfig[] = [
     id: 'starter',
     name: 'Starter',
     price: 15,
-    events: Number(process.env.NEXT_PUBLIC_STARTER),
+    events: 2000,
     retentionDays: 90,
     sites: 1,
     posts: 100,
@@ -49,7 +57,7 @@ export const PLANS: PlanConfig[] = [
     name: 'Growth',
     price: 39,
     posts: 500,
-    events: Number(process.env.NEXT_PUBLIC_GROWTH),
+    events: Infinity,
     retentionDays: 365,
     sites: 400,
     cta: 'Get started now',

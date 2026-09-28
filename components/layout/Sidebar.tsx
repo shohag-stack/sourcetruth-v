@@ -141,16 +141,15 @@ export function Sidebar({ data }: { data: SidebarData | null }) {
           </div>
         </div>
       </div>
-
-
-      {/* USAGE BAR DISPLAY */}
+    
 
       {/* Usage bar in sidebar or dashboard */}
+      
         <div className="card p-4">
           <div className="flex justify-between text-body-sm mb-2">
             <span className="text-muted">Monthly pageviews</span>
             <span className="text-ink font-medium tabular">
-              {formatNumber(data?.monthlyPageviews ?? 0)} / {formatNumber(data?.limit ?? 0)}
+              {formatNumber(data?.monthlyPageviews ?? 0)} / {formatNumber(data?.limit)}
             </span>
           </div>
           <div className="h-2 bg-surface-muted rounded-full overflow-hidden">

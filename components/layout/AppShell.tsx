@@ -2,6 +2,7 @@
 import { Sidebar, type SidebarData } from "./Sidebar";
 import { createClient } from "@/utils/supabase/server";
 import { pctChange } from "@/lib/utils";
+import { pageviewsLimitFromDb } from "@/lib/pricing";
 
 // Fetched once per page render, server-side — same 30d/prior-30d
 // revenue math as the Dashboard's "Revenues" stat card and the
@@ -40,11 +41,9 @@ async function getSidebarData(): Promise<SidebarData | null> {
 
   const { data: userPlan } = await supabase
     .from("users")
-    .select("plan")
+    .select("plan, pageviews_limit")
     .eq("id", user.id)
     .maybeSingle();
-
-  console.log("showing Users from userPlan", userPlan);
 
   const { data: site } = await supabase
     .from("sites")
@@ -52,35 +51,38 @@ async function getSidebarData(): Promise<SidebarData | null> {
     .eq("user_id", user.id)
     .maybeSingle();
 
-  // In your dashboard page — fetch monthly pageview count
   const startOfMonth = new Date();
   startOfMonth.setDate(1);
   startOfMonth.setHours(0, 0, 0, 0);
 
-  const { count: monthlyPageviews } = await supabase
-    .from("pageviews")
-    .select("id", { count: "exact", head: true })
-    .eq("site_id", site?.id)
-    .gte("visited_at", startOfMonth.toISOString());
+  // Guard against site being undefined (new user, no site yet) — passing
+  // .eq("site_id", undefined) to supabase-js is not reliably "match nothing".
+  let monthlyPageviews = 0;
+  if (site?.id) {
+    const { count } = await supabase
+      .from("pageviews")
+      .select("id", { count: "exact", head: true })
+      .eq("site_id", site.id)
+      .gte("visited_at", startOfMonth.toISOString());
+    monthlyPageviews = count ?? 0;
+  }
 
-  const LIMITS: Record<string, number> = {
-    free: Number(process.env.NEXT_PUBLIC_FREE),
-    starter: Number(process.env.NEXT_PUBLIC_STARTER),
-    pro: Number(process.env.NEXT_PUBLIC_PRO),
-  };
-
-  const limit = LIMITS[userPlan?.plan ?? "free"];
-  const usagePct = Math.min(((monthlyPageviews ?? 0) / limit) * 100, 100);
+  // pageviews_limit is null in the DB for unlimited plans (Postgres can't
+  // store Infinity) — translate that back to Infinity here, once, so
+  // nothing downstream (usagePct math, Sidebar's formatNumber) needs its
+  // own "is this null" special case. This is the actual fix: the old
+  // `Number(limit)` turned null into 0, which made monthlyPageviews / 0
+  // evaluate to Infinity, which Math.min(..., 100) then clamped to 100 —
+  // an unlimited-plan user showing 100% usage and the red "near limit" banner.
+  const limit = pageviewsLimitFromDb(userPlan?.pageviews_limit);
+  const usagePct = Math.min((monthlyPageviews / limit) * 100, 100);
 
   return {
     name: user.user_metadata?.name ?? user.email?.split("@")[0] ?? "Account",
-    // NOTE: still no real subscriptions/billing source anywhere in the
-    // codebase — see the same flag left in Sidebar.tsx. Swap this for a
-    // real lookup once one exists.
-    plan: user.user_metadata?.plan ?? "Free Plan",
+    plan: userPlan?.plan?.toUpperCase() ?? "FREE",
     revenueCents: centsThisMonth,
     growthPct: pctChange(centsThisMonth, centsPriorMonth),
-    monthlyPageviews: monthlyPageviews ?? 0,
+    monthlyPageviews,
     limit,
     usagePct,
   };

@@ -52,8 +52,14 @@ export async function GET(request: NextRequest) {
       // Runs before the onboarding/dashboard check below — if they
       // came here to buy Starter/Growth, that takes priority over
       // "do they have a site set up yet."
+
+      console.log('[auth/callback] User signed in:', user.id, user.email, 'requested plan:', requestedPlan)
+      
       const checkoutBase = requestedPlan ? CHECKOUT_URLS[requestedPlan] : undefined
       if (checkoutBase) {
+
+        console.log('[auth/callback] Redirecting to checkout for plan:', requestedPlan, 'URL:', checkoutBase)
+
         return NextResponse.redirect(
           buildCheckoutUrl(checkoutBase, user.id, user.email ?? null),
         )
@@ -61,6 +67,7 @@ export async function GET(request: NextRequest) {
 
       // Check if user has a site set up yet
       // If not, redirect to onboarding instead of dashboard
+
       const { data: sites } = await supabase
         .from('sites')
         .select('id')

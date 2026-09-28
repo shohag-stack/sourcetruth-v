@@ -41,8 +41,6 @@ export default async function PostDetailPage({ params }: { params: Promise<{ id:
       .order('received_at', { ascending: false }),
   ])
 
-console.log('clicks error:', clicksError)
-console.log('click rows:', clicks)
 
   const clickRows = clicks ?? []
   const conversionRows = conversions ?? []

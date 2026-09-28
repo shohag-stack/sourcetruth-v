@@ -58,6 +58,71 @@ function SourceIcon({ meta }: { meta: ReturnType<typeof metaFor> }) {
   );
 }
 
+// ─── Pagination ───────────────────────────────────────────────
+// PostgREST silently caps any unbounded .select() at its configured
+// "Max Rows" setting (default 1000) — there's no error, no warning, it
+// just quietly hands back a partial result set ordered however you
+// asked. This page was aggregating (top pages/countries/referrers,
+// unique-session counts, chart buckets, etc.) directly off that capped
+// `rows` array, so "All time" numbers could come in LOWER than a
+// shorter, exact-count range — exactly what you saw between the
+// sidebar's real count() and this page's truncated row list.
+//
+// Fix: page through in PAGE_SIZE chunks via .range() until a page
+// comes back short (or empty), accumulating every row. `buildQuery`
+// must return a FRESH query each call (filters applied, but not yet
+// .order()/.range()'d) — reusing one query-builder instance across
+// multiple .range() calls is not something postgrest-js guarantees
+// will behave correctly.
+const PAGE_SIZE = 1000;
+
+async function fetchAllRows<T>(
+  buildQuery: () => any,
+  orderColumn: string,
+  ascending: boolean,
+): Promise<T[]> {
+  const allRows: T[] = [];
+  let from = 0;
+
+  while (true) {
+    const { data, error } = await buildQuery()
+      .order(orderColumn, { ascending })
+      .range(from, from + PAGE_SIZE - 1);
+
+    if (error) {
+      console.error(`[traffic] pagination fetch error (${orderColumn}):`, error.message);
+      break;
+    }
+    if (!data || data.length === 0) break;
+
+    allRows.push(...(data as T[]));
+
+    if (data.length < PAGE_SIZE) break; // last page
+    from += PAGE_SIZE;
+  }
+
+  return allRows;
+}
+
+type PageviewRow = {
+  session_id: string;
+  path: string | null;
+  country: string | null;
+  device: string | null;
+  browser: string | null;
+  os: string | null;
+  is_bounce: boolean | null;
+  is_new_visitor: boolean | null;
+  duration_seconds: number | null;
+  visited_at: string;
+  referrer: string | null;
+};
+
+type ConversionRow = {
+  amount_cents: number;
+  customer_email: string | null;
+  received_at: string;
+};
 
 type Range = "24h" | "7d" | "30d" | "90d" | "1y" | "all";
 
@@ -187,7 +252,7 @@ export default async function TrafficAnalyticsPage({
   if (!user) redirect("/auth/login");
 
   // Get first site for this user
-  // TODO: add site switcher when multiple sites UI is ready
+  
   const { data: site } = await supabase
     .from("sites")
     .select("id, name, domain")
@@ -218,6 +283,15 @@ export default async function TrafficAnalyticsPage({
     );
   }
 
+  // Pulled into its own const right after the null-check above.
+  // TypeScript's control-flow narrowing of `site` (from `{...} | null`
+  // to `{...}`) doesn't survive into the nested `buildPageviewsQuery` /
+  // buildConversionsQuery` function declarations below — closures fall
+  // back to the pre-narrowed type. A fresh const at this point in the
+  // control flow IS fully narrowed, so referencing `siteId` inside those
+  // closures instead of `site.id` sidesteps the false-positive error.
+  const siteId = site.id;
+
   // ── Fetch all pageviews for this site ─────────────────────
   const since = getSince(range);
 
@@ -226,50 +300,49 @@ export default async function TrafficAnalyticsPage({
   // URL track.js posts to /api/pageview. If it's named differently (or
   // doesn't exist), the referrers card will just show everything as
   // "Direct".
-  let pageviewsQuery = supabase
-    .from("pageviews")
-    .select(
-      "session_id, path, country, device, browser, os, is_bounce, is_new_visitor, duration_seconds, visited_at, referrer",
-    )
-    .eq("site_id", site.id);
+  //
+  // Rebuilt as a factory function (not a single query variable) so
+  // fetchAllRows() can call it fresh for every page of results — see
+  // the pagination comment above.
+  function buildPageviewsQuery() {
+    let q = supabase
+      .from("pageviews")
+      .select(
+        "session_id, path, country, device, browser, os, is_bounce, is_new_visitor, duration_seconds, visited_at, referrer",
+      )
+      .eq("site_id", siteId);
 
-  // Apply drill-down filters
-  if (filterCountry)
-    pageviewsQuery = pageviewsQuery.eq("country", filterCountry);
-  if (filterDevice) pageviewsQuery = pageviewsQuery.eq("device", filterDevice);
-  if (filterBrowser)
-    pageviewsQuery = pageviewsQuery.eq("browser", filterBrowser);
-  if (filterOS) pageviewsQuery = pageviewsQuery.eq("os", filterOS);
-  if (filterPath) pageviewsQuery = pageviewsQuery.eq("path", filterPath);
-  // if (filterReferrer)
-  //   pageviewsQuery = pageviewsQuery.like("referrer", `%${filterReferrer}%`);
+    if (filterCountry) q = q.eq("country", filterCountry);
+    if (filterDevice) q = q.eq("device", filterDevice);
+    if (filterBrowser) q = q.eq("browser", filterBrowser);
+    if (filterOS) q = q.eq("os", filterOS);
+    if (filterPath) q = q.eq("path", filterPath);
+    if (filterReferrer === "direct") {
+      q = q.or("referrer.is.null,referrer.eq.");
+    }
+    if (since) q = q.gte("visited_at", since.toISOString());
 
-  if (filterReferrer === "direct") {
-  pageviewsQuery = pageviewsQuery.or("referrer.is.null,referrer.eq.");
-}
-
-  if (since) {
-    pageviewsQuery = pageviewsQuery.gte("visited_at", since.toISOString());
+    return q;
   }
 
-  let conversionsQuery = supabase
-    .from("conversions")
-    .select("amount_cents, customer_email, received_at")
-    .eq("site_id", site.id)
-    .eq("refunded", false);
+  function buildConversionsQuery() {
+    let q = supabase
+      .from("conversions")
+      .select("amount_cents, customer_email, received_at")
+      .eq("site_id", siteId)
+      .eq("refunded", false);
 
-  if (since) {
-    pageviewsQuery = pageviewsQuery.gte("visited_at", since.toISOString());
-    conversionsQuery = conversionsQuery.gte("received_at", since.toISOString());
+    if (since) q = q.gte("received_at", since.toISOString());
+
+    return q;
   }
 
-  const [{ data: pageviews }, { data: conversions }] = await Promise.all([
-    pageviewsQuery.order("visited_at", { ascending: false }),
-    conversionsQuery.order("received_at", { ascending: true }),
+  const [pageviewRows, conversionRows] = await Promise.all([
+    fetchAllRows<PageviewRow>(buildPageviewsQuery, "visited_at", false),
+    fetchAllRows<ConversionRow>(buildConversionsQuery, "received_at", true),
   ]);
 
-  const rows = pageviews ?? [];
-  const conversionRows = conversions ?? [];
+  const rows = pageviewRows;
 
   // ── Aggregate stats ───────────────────────────────────────
   const totalPageviews = rows.length;
@@ -346,7 +419,7 @@ export default async function TrafficAnalyticsPage({
     .sort((a, b) => b[1] - a[1])
     .slice(0, 8)
     .map(([code, value]) => ({
-      label: code === "unknown" ? "Unknown" : countryDisplay(code) ,
+      label: code === "unknown" ? "Unknown" : countryDisplay(code),
       value,
       filterValue: code,
     }));
@@ -356,9 +429,7 @@ export default async function TrafficAnalyticsPage({
   // else in the app that deals with sources.
   const referrerCounts = new Map<string, number>();
   rows.forEach((r) => {
-    const src = sourceFromReferrer(
-      (r as { referrer?: string | null }).referrer ?? null,
-    );
+    const src = sourceFromReferrer(r.referrer ?? null);
     referrerCounts.set(src, (referrerCounts.get(src) ?? 0) + 1);
   });
   const topReferrers = Array.from(referrerCounts.entries())
@@ -380,7 +451,7 @@ export default async function TrafficAnalyticsPage({
     .map(([label, value]) => ({
       label: DEVICE_LABEL[label],
       value,
-      icon: DEVICE_ICON[label]
+      icon: DEVICE_ICON[label],
     }));
 
   // ── Top browsers ──────────────────────────────────────────
@@ -389,15 +460,14 @@ export default async function TrafficAnalyticsPage({
     const b = r.browser ?? "unknown";
     browserCounts.set(b, (browserCounts.get(b) ?? 0) + 1);
   });
-// Browsers — chrome, safari, firefox
-const topBrowsers = Array.from(browserCounts.entries())
-  .sort((a, b) => b[1] - a[1])
-  .map(([label, value]) => ({
-    label: BROWSER_LABEL[label] ?? label,
-    value,
-    icon: BROWSER_ICON[label] ?? null,
-    filterValue: label,
-  }))
+  const topBrowsers = Array.from(browserCounts.entries())
+    .sort((a, b) => b[1] - a[1])
+    .map(([label, value]) => ({
+      label: BROWSER_LABEL[label] ?? label,
+      value,
+      icon: BROWSER_ICON[label] ?? null,
+      filterValue: label,
+    }));
 
   // ── Top OS ────────────────────────────────────────────────
   const osCounts = new Map<string, number>();
@@ -405,14 +475,14 @@ const topBrowsers = Array.from(browserCounts.entries())
     const o = r.os ?? "unknown";
     osCounts.set(o, (osCounts.get(o) ?? 0) + 1);
   });
-const topOS = Array.from(osCounts.entries())
-  .sort((a, b) => b[1] - a[1])
-  .map(([label, value]) => ({
-    label: OS_LABEL[label] ?? label,
-    value,
-    icon: OS_ICON[label] ?? null,
-    filterValue: label,
-  }))
+  const topOS = Array.from(osCounts.entries())
+    .sort((a, b) => b[1] - a[1])
+    .map(([label, value]) => ({
+      label: OS_LABEL[label] ?? label,
+      value,
+      icon: OS_ICON[label] ?? null,
+      filterValue: label,
+    }));
 
   // ── Stat cards data ───────────────────────────────────────
   const STATS = [
