@@ -6,6 +6,7 @@ const PROTECTED = [
   "/links",
   "/posts",
   "/analytics",
+  "/events",
   "/revenue",
   "/connect",
   "/settings",
