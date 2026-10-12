@@ -1,4 +1,4 @@
-// app/links/page.tsx
+// app/posts/new/page.tsx
 
 import NewLinkServer from "@/components/links/NewLinkServer";
 

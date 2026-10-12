@@ -19,7 +19,7 @@ import {
 
 const NAV_MAIN = [
   { href: '/dashboard', label: 'Overview', icon: LayoutDashboard },
-  { href: '/links', label: 'New Post', icon: SquarePen, highlight: true },
+  { href: '/posts/new', label: 'New Post', icon: SquarePen, highlight: true },
   { href: '/posts', label: 'My Posts', icon: FileText },
   // { href: '/analytics', label: 'Analytics', icon: '◉' },
   { href: '/visitors', label: 'Visitors', icon: Users },
@@ -50,7 +50,8 @@ export function Sidebar({ data }: { data: SidebarData | null }) {
   const pathname = usePathname()
   const router = useRouter()
   const isActive = (href: string) =>
-    pathname === href || (href !== '/dashboard' && pathname.startsWith(href))
+    pathname === href ||
+    (href !== '/dashboard' && pathname.startsWith(href) && !(href === '/posts' && pathname === '/posts/new'))
 
   // NEW — real sign out, not just a static user block
   async function handleSignOut() {

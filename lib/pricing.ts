@@ -18,6 +18,8 @@ export interface PlanConfig {
   // special "null means unlimited" branch anywhere it's used.
   events: number
   posts: number
+  // Image uploads per calendar month (each one costs ImageKit storage + bandwidth)
+  imageUploads: number
   retentionDays: number
   sites: number
   cta: string
@@ -38,6 +40,7 @@ export const PLANS: PlanConfig[] = [
     retentionDays: 15,
     sites: 1,
     posts: 5,
+    imageUploads: 10,
     cta: 'Get started free',
     href: '/auth/login',
   },
@@ -49,6 +52,7 @@ export const PLANS: PlanConfig[] = [
     retentionDays: 90,
     sites: 1,
     posts: 100,
+    imageUploads: 300,
     cta: 'Get started now',
     href: '/auth/login?plan=starter',
   },
@@ -57,6 +61,7 @@ export const PLANS: PlanConfig[] = [
     name: 'Growth',
     price: 39,
     posts: 500,
+    imageUploads: 1500,
     events: Infinity,
     retentionDays: 365,
     sites: 400,

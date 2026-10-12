@@ -145,7 +145,7 @@ export default function PostClient({
               {posts.filter((p) => p.status === "posted").length} posted
             </p>
           </div>
-          <Link href="/links" className="btn-primary">
+          <Link href="/posts/new" className="btn-primary">
             New Post
           </Link>
         </div>
@@ -441,7 +441,7 @@ export default function PostClient({
             <div className="text-muted text-sm mb-4">
               Generate your first tracked link to get started
             </div>
-            <Link href="/links" className="btn-primary inline-block">
+            <Link href="/posts/new" className="btn-primary inline-block">
               + New Post
             </Link>
           </div>

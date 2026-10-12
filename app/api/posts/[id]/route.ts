@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@/utils/supabase/server";
 import { createServiceClient } from "@/utils/supabase/service";
-import { deleteImagekitFile, isOwnImageUrl } from "@/lib/imagekit";
+import { deleteImagekitFile, verifyUserImage } from "@/lib/imagekit";
 
 interface Params {
   params: Promise<{
@@ -39,8 +39,12 @@ export async function PATCH(request: Request, { params }: Params) {
   // image: { url, fileId } to set/replace, or null to remove
   let oldFileId: string | null = null;
   if (body.image !== undefined) {
-    if (body.image !== null && !isOwnImageUrl(body.image?.url)) {
-      return NextResponse.json({ error: "Invalid image" }, { status: 400 });
+    // Verified against ImageKit: must be this user's own file, ≤ 5 MB
+    let verified: { url: string; fileId: string } | null = null;
+    if (body.image !== null) {
+      const result = await verifyUserImage(body.image?.fileId, user.id);
+      if (!result.ok) return NextResponse.json({ error: result.error }, { status: 400 });
+      verified = { url: result.url, fileId: result.fileId };
     }
     const { data: existing } = await supabase
       .from("posts")
@@ -49,8 +53,8 @@ export async function PATCH(request: Request, { params }: Params) {
       .eq("user_id", user.id)
       .maybeSingle();
     oldFileId = existing?.image_file_id ?? null;
-    update.image_url = body.image?.url ?? null;
-    update.image_file_id = body.image?.fileId ?? null;
+    update.image_url = verified?.url ?? null;
+    update.image_file_id = verified?.fileId ?? null;
   }
 
   if (Object.keys(update).length === 0) {
