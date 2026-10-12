@@ -238,26 +238,76 @@
     return data.source ?? null;
   }
 
+  // Beacon survives page unloads (e.g. a click that navigates to Google
+  // sign-in); fall back to keepalive fetch where sendBeacon is missing.
+  function send(endpoint, payload) {
+    const body = JSON.stringify(payload);
+    try {
+      if (navigator.sendBeacon && navigator.sendBeacon(`${ORIGIN}${endpoint}`, body)) return;
+    } catch (e) {}
+    fetch(`${ORIGIN}${endpoint}`, {
+      method: "POST",
+      headers: { "Content-Type": "text/plain" },
+      body,
+      keepalive: true,
+    }).catch(() => {});
+  }
+
   window.SourceTruth = {
-    identify: async function (email) {
-      const slug = getStoredSlug();
+    identify: function (email) {
       if (!email) return;
-      try {
-        await fetch(`${ORIGIN}/api/identify`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ email, slug, site_key: SITE_KEY }),
-        });
-      } catch (e) {}
+      send("/api/identify", {
+        email,
+        slug: getStoredSlug(),
+        site_key: SITE_KEY,
+        session_id: sessionId,
+        path: window.location.pathname,
+      });
+    },
+
+    // Custom events: SourceTruth.track("signup_click", { plan: "pro" })
+    track: function (name, props) {
+      if (!name) return;
+      send("/api/event", {
+        site_key: SITE_KEY,
+        session_id: sessionId,
+        name: String(name),
+        path: window.location.pathname,
+        props: props || null,
+      });
     },
   };
+
+  // Calls made before this script loaded:
+  //   window.stq = window.stq || []; stq.push(["track", "name", { ... }]);
+  const queued = Array.isArray(window.stq) ? window.stq : [];
+  window.stq = {
+    push: function (args) {
+      const fn = args && window.SourceTruth[args[0]];
+      if (typeof fn === "function") fn.apply(null, args.slice(1));
+    },
+  };
+  queued.forEach(window.stq.push);
 
   document.addEventListener("submit", function (e) {
     const emailInput =
       e.target.querySelector && e.target.querySelector('input[type="email"]');
     if (emailInput && emailInput.value)
       window.SourceTruth.identify(emailInput.value);
+    // No-code events: <form data-st-event="newsletter_signup">
+    const formEvent = e.target.getAttribute && e.target.getAttribute("data-st-event");
+    if (formEvent) window.SourceTruth.track(formEvent);
   });
+
+  // No-code events: <button data-st-event="google_login_click">
+  document.addEventListener(
+    "click",
+    function (e) {
+      const el = e.target.closest && e.target.closest("[data-st-event]");
+      if (el && el.tagName !== "FORM") window.SourceTruth.track(el.getAttribute("data-st-event"));
+    },
+    true,
+  );
 
   // ── Attach attribution to Lemon Squeezy checkout links ───────
   // device/os/browser/first_seen/touchpoints/session_id ALWAYS attach,
