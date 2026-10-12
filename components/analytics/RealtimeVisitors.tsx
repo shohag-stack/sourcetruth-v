@@ -89,7 +89,15 @@ type Visitor = {
   isNewVisitor: boolean;
   pageviewsThisSession: number;
   customerEmail: string | null;
+  identifiedEmail?: string | null;
+  events?: { name: string; at: string; path: string | null }[];
 };
+
+// "login_google_click" → "Login google click"
+function eventLabel(name: string): string {
+  const text = name.replace(/[_\-.:]+/g, " ").trim();
+  return text.charAt(0).toUpperCase() + text.slice(1);
+}
 
 function sourceFromReferrer(referrer: string | null): string {
   if (!referrer) return "direct";
@@ -187,7 +195,8 @@ export function RealtimeVisitors() {
           <AnimatePresence initial={false} mode="popLayout">
             {visitors.map((v) => {
               const identity = identityFor(v.sessionId);
-              const displayName = v.customerEmail ?? identity.name;
+              const knownEmail = v.customerEmail ?? v.identifiedEmail ?? null;
+              const displayName = knownEmail ?? identity.name;
               const source = metaFor(sourceFromReferrer(v.referrer));
 
               return (
@@ -202,7 +211,7 @@ export function RealtimeVisitors() {
                 >
                   <div className="relative flex-shrink-0">
                     <img
-                          src={avatarUrl(v.customerEmail ?? v.sessionId)}
+                          src={avatarUrl(knownEmail ?? v.sessionId)}
                           alt={displayName}
                           width={40}
                           height={40}
@@ -223,9 +232,11 @@ export function RealtimeVisitors() {
                       <span className="text-body-sm font-semibold text-ink truncate">
                         {displayName}
                       </span>
-                      {v.customerEmail && (
+                      {v.customerEmail ? (
                         <span className="badge-primary-tint">Customer</span>
-                      )}
+                      ) : v.identifiedEmail ? (
+                        <span className="badge-success">Identified</span>
+                      ) : null}
                       {v.isNewVisitor ? (
                         <span className="badge-primary-tint">New</span>
                       ) : <span className="badge-success">Returning</span> }
@@ -256,6 +267,21 @@ export function RealtimeVisitors() {
                         </span>
                       )}
                     </div>
+
+                    {v.events && v.events.length > 0 && (
+                      <div className="flex items-center gap-1.5 flex-wrap mt-1">
+                        {v.events.map((e, i) => (
+                          <span
+                            key={`${e.name}-${e.at}-${i}`}
+                            title={`${e.path ?? ""} · ${new Date(e.at).toLocaleTimeString()}`}
+                            className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full border border-line text-caption font-medium text-ink normal-case"
+                          >
+                            ⚡ {eventLabel(e.name)}
+                            <span className="text-muted font-normal">· {timeAgo(e.at)}</span>
+                          </span>
+                        ))}
+                      </div>
+                    )}
                   </div>
 
                   <code className="text-xs font-bold text-muted truncate">

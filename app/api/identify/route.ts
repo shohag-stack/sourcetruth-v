@@ -3,7 +3,8 @@ import { createServiceClient } from '@/utils/supabase/service'
 import { NextResponse } from 'next/server'
 
 export async function POST(request: Request) {
-  const { email, slug, site_key } = await request.json()
+  // track.js may send this with keepalive/sendBeacon, so read raw text
+  const { email, slug, site_key, session_id, path } = JSON.parse(await request.text())
   if (!email || !site_key) return withCors(NextResponse.json({ error: 'missing fields' }, { status: 400 }))
 
   const supabase = createServiceClient()
@@ -46,6 +47,18 @@ export async function POST(request: Request) {
       last_source: slug ? 'link' : null,
       last_post_id: postId,
       last_seen_at: now,
+    })
+  }
+
+  // Link the email to this browser session so Realtime Visitors can show who it is
+  if (typeof session_id === 'string' && session_id) {
+    await supabase.from('events').insert({
+      site_id: site.id,
+      user_id: site.user_id,
+      session_id: session_id.slice(0, 64),
+      name: 'identify',
+      path: typeof path === 'string' ? path.slice(0, 300) : null,
+      props: { email: normalizedEmail },
     })
   }
 

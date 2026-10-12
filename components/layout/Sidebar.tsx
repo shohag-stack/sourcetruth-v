@@ -135,8 +135,8 @@ export function Sidebar({ data }: { data: SidebarData | null }) {
             <div className="text-[13px] font-medium text-[#0F172A] truncate">
               {data?.name ?? 'Account'}
             </div>
-            <div className="text-[11px] text-[#94A3B8] truncate">
-              {data?.plan ?? 'Free Plan'}
+            <div className="flex text-[11px] text-white truncate">
+              <div className="px-1 bg-primary rounded font-bold">{data?.plan ?? 'Free Plan'}</div>
             </div>
           </div>
         </div>

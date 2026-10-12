@@ -132,6 +132,32 @@ export async function GET() {
     });
   }
 
+  // ── Custom events + identified emails (SourceTruth.track / identify) ──
+  // Missing `events` table (migration not run yet) just means no events.
+  const eventsBySession = new Map<string, { name: string; at: string; path: string | null }[]>();
+  const identifiedBySession = new Map<string, string>();
+
+  if (sessionIds.length > 0) {
+    const { data: events } = await supabase
+      .from("events")
+      .select("session_id, name, path, props, created_at")
+      .eq("site_id", site.id)
+      .in("session_id", sessionIds)
+      .order("created_at", { ascending: true });
+
+    events?.forEach((e) => {
+      if (!e.session_id) return;
+      if (e.name === "identify") {
+        const email = (e.props as { email?: string } | null)?.email;
+        if (email) identifiedBySession.set(e.session_id, email); // latest wins
+        return;
+      }
+      const list = eventsBySession.get(e.session_id) ?? [];
+      list.push({ name: e.name, at: e.created_at, path: e.path });
+      eventsBySession.set(e.session_id, list);
+    });
+  }
+
   const visitors = sortedRows.map((r) => ({
     // unique per pageview now (not per session), since the same
     // session can legitimately appear more than once in the list
@@ -150,6 +176,9 @@ export async function GET() {
     // drive-by pageview)
     pageviewsThisSession: pageviewCountBySession.get(r.session_id) ?? 1,
     customerEmail: emailBySession.get(r.session_id) ?? null,
+    identifiedEmail: identifiedBySession.get(r.session_id) ?? null,
+    // newest last, capped so a chatty session doesn't flood the card
+    events: (eventsBySession.get(r.session_id) ?? []).slice(-5),
   }));
 
   return NextResponse.json({ visitors, isLive });
