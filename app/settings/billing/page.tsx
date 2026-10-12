@@ -1,6 +1,6 @@
 // app/settings/billing/page.tsx
 import { AppShell } from "@/components/layout/AppShell";
-import { createClient } from "@/utils/supabase/server";
+import { createClient, getAuthUser } from "@/utils/supabase/server";
 import { redirect } from "next/navigation";
 import { getUsage } from "@/lib/utils/checkLimit";
 import { PLANS } from "@/lib/pricing";
@@ -10,7 +10,7 @@ export default async function BillingPage() {
   const supabase = await createClient();
   const {
     data: { user },
-  } = await supabase.auth.getUser();
+  } = await getAuthUser();
   if (!user) redirect("/auth/login");
 
   const { plan, usage } = await getUsage(user.id);

@@ -128,15 +128,25 @@ export function Sidebar({ data }: { data: SidebarData | null }) {
           AppShell and passed down. No client fetch, no loading flash. */}
       <div className="mx-3 mb-3 p-3.5 rounded-xl bg-[#F8F9FC] border border-[#E8ECF2]">
         <div className="text-[11px] text-[#94A3B8] mb-1">Revenue this month</div>
-        <div className="text-lg font-bold text-[#0F172A] tabular">
-          {formatMoneyFull((data?.revenueCents ?? 0) / 100)}
-        </div>
-        <div
-          className="text-[11px] font-medium mt-0.5"
-          style={{ color: (data?.growthPct ?? 0) >= 0 ? '#10B981' : '#EF4444' }}
-        >
-          {trendLabel(data?.growthPct ?? 0)} vs last month
-        </div>
+        {data ? (
+          <>
+            <div className="text-lg font-bold text-[#0F172A] tabular">
+              {formatMoneyFull(data.revenueCents / 100)}
+            </div>
+            <div
+              className="text-[11px] font-medium mt-0.5"
+              style={{ color: data.growthPct >= 0 ? '#10B981' : '#EF4444' }}
+            >
+              {trendLabel(data.growthPct)} vs last month
+            </div>
+          </>
+        ) : (
+          // Sidebar numbers stream in after the page (see AppShell)
+          <div className="animate-pulse">
+            <div className="h-6 w-24 rounded bg-[#E8ECF2] mt-1" />
+            <div className="h-3 w-28 rounded bg-[#E8ECF2] mt-1.5" />
+          </div>
+        )}
       </div>
 
       <div className="px-4 pb-5 pt-2 border-t border-[#E8ECF2]">
@@ -145,12 +155,19 @@ export function Sidebar({ data }: { data: SidebarData | null }) {
             {(data?.name ?? '?').charAt(0).toUpperCase()}
           </div>
           <div className="flex-1 min-w-0">
-            <div className="text-[13px] font-medium text-[#0F172A] truncate">
-              {data?.name ?? 'Account'}
-            </div>
-            <div className="flex text-[11px] text-white truncate">
-              <div className="px-1 bg-primary rounded font-bold">{data?.plan ?? 'Free Plan'}</div>
-            </div>
+            {data ? (
+              <>
+                <div className="text-[13px] font-medium text-[#0F172A] truncate">{data.name}</div>
+                <div className="flex text-[11px] text-white truncate">
+                  <div className="px-1 bg-primary rounded font-bold">{data.plan}</div>
+                </div>
+              </>
+            ) : (
+              <div className="animate-pulse">
+                <div className="h-3.5 w-24 rounded bg-[#E8ECF2]" />
+                <div className="h-3 w-12 rounded bg-[#E8ECF2] mt-1.5" />
+              </div>
+            )}
           </div>
         </div>
       </div>
@@ -162,7 +179,7 @@ export function Sidebar({ data }: { data: SidebarData | null }) {
           <div className="flex justify-between text-body-sm mb-2">
             <span className="text-muted">Monthly pageviews</span>
             <span className="text-ink font-medium tabular">
-              {formatNumber(data?.monthlyPageviews ?? 0)} / {formatNumber(data?.limit)}
+              {data ? `${formatNumber(data.monthlyPageviews)} / ${formatNumber(data.limit)}` : '…'}
             </span>
           </div>
           <div className="h-2 bg-surface-muted rounded-full overflow-hidden">
@@ -171,7 +188,7 @@ export function Sidebar({ data }: { data: SidebarData | null }) {
                 (data?.usagePct ?? 0) > 90 ? 'bg-red-500' :
                 (data?.usagePct ?? 0) > 70 ? 'bg-amber-500' : 'bg-primary'
               }`}
-              style={{ width: `${data?.usagePct}%` }}
+              style={{ width: `${data?.usagePct ?? 0}%` }}
             />
           </div>
           {(data?.usagePct?? 0) > 80 && (

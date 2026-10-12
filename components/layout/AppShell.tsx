@@ -1,6 +1,7 @@
 // components/layout/AppShell.tsx
+import { Suspense } from "react";
 import { Sidebar, type SidebarData } from "./Sidebar";
-import { createClient } from "@/utils/supabase/server";
+import { createClient, getAuthUser } from "@/utils/supabase/server";
 import { pctChange } from "@/lib/utils";
 import { pageviewsLimitFromDb } from "@/lib/pricing";
 
@@ -12,19 +13,35 @@ async function getSidebarData(): Promise<SidebarData | null> {
   const supabase = await createClient();
   const {
     data: { user },
-  } = await supabase.auth.getUser();
+  } = await getAuthUser();
   if (!user) return null;
 
   const now = Date.now();
   const since30 = new Date(now - 30 * 24 * 60 * 60 * 1000).toISOString();
   const since60 = new Date(now - 60 * 24 * 60 * 60 * 1000).toISOString();
 
-  const { data: conversions } = await supabase
-    .from("conversions")
-    .select("amount_cents, received_at")
-    .eq("user_id", user.id)
-    .eq("refunded", false)
-    .gte("received_at", since60);
+  const startOfMonth = new Date();
+  startOfMonth.setDate(1);
+  startOfMonth.setHours(0, 0, 0, 0);
+
+  // These don't depend on each other — one round trip instead of three
+  const [{ data: conversions }, { data: userPlan }, { data: site }] = await Promise.all([
+    supabase
+      .from("conversions")
+      .select("amount_cents, received_at")
+      .eq("user_id", user.id)
+      .eq("refunded", false)
+      .gte("received_at", since60),
+    supabase.from("users").select("plan, pageviews_limit").eq("id", user.id).maybeSingle(),
+    // First site, same convention as the pages (maybeSingle alone errors when a user has 2+ sites)
+    supabase
+      .from("sites")
+      .select("id")
+      .eq("user_id", user.id)
+      .order("created_at", { ascending: true })
+      .limit(1)
+      .maybeSingle(),
+  ]);
 
   const rows = conversions ?? [];
   const thisMonth = rows.filter((r) => r.received_at >= since30);
@@ -38,22 +55,6 @@ async function getSidebarData(): Promise<SidebarData | null> {
     (sum, r) => sum + (r.amount_cents ?? 0),
     0,
   );
-
-  const { data: userPlan } = await supabase
-    .from("users")
-    .select("plan, pageviews_limit")
-    .eq("id", user.id)
-    .maybeSingle();
-
-  const { data: site } = await supabase
-    .from("sites")
-    .select("id")
-    .eq("user_id", user.id)
-    .maybeSingle();
-
-  const startOfMonth = new Date();
-  startOfMonth.setDate(1);
-  startOfMonth.setHours(0, 0, 0, 0);
 
   // Guard against site being undefined (new user, no site yet) — passing
   // .eq("site_id", undefined) to supabase-js is not reliably "match nothing".
@@ -88,12 +89,19 @@ async function getSidebarData(): Promise<SidebarData | null> {
   };
 }
 
-export async function AppShell({ children }: { children: React.ReactNode }) {
-  const sidebarData = await getSidebarData();
+// Sidebar numbers stream in separately so they never hold up the page content.
+// The nav renders immediately (fallback has the links, just no numbers yet).
+async function SidebarWithData() {
+  const data = await getSidebarData();
+  return <Sidebar data={data} />;
+}
 
+export function AppShell({ children }: { children: React.ReactNode }) {
   return (
     <div className="flex min-h-screen">
-      <Sidebar data={sidebarData} />
+      <Suspense fallback={<Sidebar data={null} />}>
+        <SidebarWithData />
+      </Suspense>
       <main className="flex-1 ml-[220px] min-h-screen">{children}</main>
     </div>
   );

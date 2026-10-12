@@ -2,7 +2,7 @@
 // Custom events sent with SourceTruth.track() / data-st-event: counts, a
 // configurable funnel, and a recent-events feed.
 import { AppShell } from "@/components/layout/AppShell";
-import { createClient } from "@/utils/supabase/server";
+import { createClient, getAuthUser } from "@/utils/supabase/server";
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { Suspense } from "react";
@@ -58,7 +58,7 @@ export default async function EventsPage({
   const supabase = await createClient();
   const {
     data: { user },
-  } = await supabase.auth.getUser();
+  } = await getAuthUser();
   if (!user) redirect("/auth/login");
 
   // Same "first site" convention as the other analytics pages

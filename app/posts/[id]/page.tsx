@@ -4,7 +4,7 @@ import { VisitorRevenueChart, VisitorRevenueDay } from '@/components/charts/Visi
 import { countryDisplay, countryFlag } from '@/lib/countryFlag'
 import { metaFor } from '@/lib/metaFor'
 import { formatMoney, formatMoneyFull, formatNumber, timeAgo, timeToConvert } from '@/lib/utils'
-import { createClient } from '@/utils/supabase/server'
+import { createClient, getAuthUser } from '@/utils/supabase/server'
 import { redirect, notFound } from 'next/navigation'
 import Link from 'next/link'
 import { RankedList } from '@/components/analytics/RankedList'
@@ -16,7 +16,7 @@ import { BROWSER_ICON, BROWSER_LABEL, DEVICE_ICON, DEVICE_LABEL, OS_ICON, OS_LAB
 export default async function PostDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params
   const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
+  const { data: { user } } = await getAuthUser()
   if (!user) redirect('/auth/login')
 
   const { data: post } = await supabase

@@ -4,7 +4,7 @@ import {
   VisitorRevenueChart,
   VisitorRevenueDay,
 } from "@/components/charts/VisitorRevenueChart";
-import { createClient } from "@/utils/supabase/server";
+import { createClient, getAuthUser } from "@/utils/supabase/server";
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { DateRangePicker } from "@/components/ui/DateRangePicker";
@@ -248,7 +248,7 @@ export default async function TrafficAnalyticsPage({
   const supabase = await createClient();
   const {
     data: { user },
-  } = await supabase.auth.getUser();
+  } = await getAuthUser();
   if (!user) redirect("/auth/login");
 
   // Get first site for this user
