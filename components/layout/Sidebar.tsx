@@ -11,6 +11,7 @@ const NAV_MAIN = [
   { href: '/posts', label: 'My Posts', icon: '◧' },
   // { href: '/analytics', label: 'Analytics', icon: '◉' },
   { href: '/visitors', label: 'Visitors', icon: '◉' },
+  { href: '/events', label: 'Events', icon: '⚡' },
   { href: '/revenue', label: 'Revenue', icon: '$' },
   { href: '/sales', label: 'Sales', icon: '$' },
 ]
