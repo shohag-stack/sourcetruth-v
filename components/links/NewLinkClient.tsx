@@ -16,16 +16,7 @@ import {
   Users,
 } from 'lucide-react'
 import { ImageUploader, type PostImage } from '@/components/posts/ImageUploader'
-
-// Character limits per network — the post is checked against all of them,
-// since one post is usually shared to several places
-const LIMITS = [
-  { name: 'X', limit: 280 },
-  { name: 'Bluesky', limit: 300 },
-  { name: 'Threads', limit: 500 },
-  { name: 'LinkedIn', limit: 3000 },
-]
-const MAX_LENGTH = 3000
+import { MAX_POST_LENGTH, NETWORKS, measure } from '@/lib/networks'
 
 interface Site {
   id: string
@@ -60,7 +51,17 @@ export default function NewLinkClient({ sites, authorName }: NewLinkClientProps)
 
   const destinationUrl = useMemo(() => parseUrl(destination), [destination])
   const destinationInvalid = destination.trim() !== '' && !destinationUrl
-  const overLimit = content.length > MAX_LENGTH
+  // Same length as the real link: the slug is 7 characters
+  const sampleTrackedLink = useMemo(() => {
+    if (!destinationUrl) return null
+    const url = new URL(destinationUrl.toString())
+    url.searchParams.set('st', 'xxxxxxx')
+    return url.toString()
+  }, [destinationUrl])
+  const fits = NETWORKS.map((n) => ({ network: n, ...measure(n, content, sampleTrackedLink) }))
+  const fitCount = fits.filter((f) => f.fits).length
+  // Only blocked when the post fits nowhere at all
+  const overLimit = Array.from(content).length > MAX_POST_LENGTH
   const canSubmit = Boolean(content.trim() && destinationUrl && !overLimit && !loading && siteId)
 
   // What the tracked link will look like — the real slug is generated on save
@@ -163,31 +164,50 @@ export default function NewLinkClient({ sites, authorName }: NewLinkClientProps)
               className="w-full resize-none bg-transparent text-[15px] leading-relaxed text-ink placeholder-muted outline-none"
               autoFocus
             />
-            <div className="flex items-center justify-between gap-3 flex-wrap pt-3">
-              <div className="flex items-center gap-1.5 flex-wrap">
-                {LIMITS.map(({ name, limit }) => {
-                  const fits = content.length <= limit
+            {/* Networks light up in their brand color while the post (+ link) fits */}
+            <div className="pt-3 border-t border-line mt-1">
+              <div className="flex items-center justify-between gap-3 mb-2">
+                <span className="text-[11px] font-semibold text-muted uppercase tracking-widest">Fits on</span>
+                <span className="text-[12px] text-muted tabular">
+                  {content ? `${fitCount} of ${NETWORKS.length} networks` : `${Array.from(content).length} characters`}
+                  {sampleTrackedLink ? ' · includes link' : ''}
+                </span>
+              </div>
+              <div className="flex items-center gap-2 flex-wrap">
+                {fits.map(({ network: n, fits: ok, remaining }) => {
+                  const near = ok && remaining <= Math.max(20, n.limit * 0.1)
                   return (
                     <span
-                      key={name}
-                      title={`${name} allows ${limit.toLocaleString()} characters`}
-                      className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[11px] font-medium transition-colors ${
-                        content.length === 0
-                          ? 'bg-surface-muted text-muted'
-                          : fits
-                            ? 'bg-surface-muted text-body'
-                            : 'bg-red-50 text-red-600'
+                      key={n.key}
+                      title={
+                        ok
+                          ? `${n.label}: ${remaining.toLocaleString()} characters left`
+                          : `${n.label}: ${Math.abs(remaining).toLocaleString()} characters over the ${n.limit.toLocaleString()} limit`
+                      }
+                      className={`inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-[12px] font-medium transition-all duration-200 ${
+                        ok ? 'text-ink' : 'border-line bg-surface-muted text-muted'
                       }`}
+                      style={ok ? { borderColor: `${n.color}33`, backgroundColor: `${n.color}0F` } : undefined}
                     >
-                      {content.length > 0 && fits && <Check className="h-3 w-3" aria-hidden />}
-                      {name}
+                      <n.icon
+                        className={`h-3.5 w-3.5 transition-all duration-200 ${ok ? '' : 'opacity-40 grayscale'}`}
+                        style={ok ? { color: n.color } : undefined}
+                        aria-hidden
+                      />
+                      {n.label}
+                      {content && (
+                        <span
+                          className={`tabular font-normal ${
+                            !ok ? 'text-red-500' : near ? 'text-amber-600' : 'text-muted'
+                          }`}
+                        >
+                          {ok ? (near ? `${remaining} left` : <Check className="h-3 w-3 inline" aria-label="fits" />) : `${Math.abs(remaining)} over`}
+                        </span>
+                      )}
                     </span>
                   )
                 })}
               </div>
-              <span className={`text-[12px] tabular font-medium ${overLimit ? 'text-red-600' : 'text-muted'}`}>
-                {content.length.toLocaleString()} / {MAX_LENGTH.toLocaleString()}
-              </span>
             </div>
           </section>
 
@@ -325,7 +345,7 @@ export default function NewLinkClient({ sites, authorName }: NewLinkClientProps)
                 : !destinationUrl
                   ? 'Add a destination URL to continue'
                   : overLimit
-                    ? `Shorten your post to ${MAX_LENGTH.toLocaleString()} characters`
+                    ? `Shorten your post to ${MAX_POST_LENGTH.toLocaleString()} characters`
                     : null}
             </p>
           )}

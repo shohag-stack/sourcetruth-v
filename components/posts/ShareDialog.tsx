@@ -6,16 +6,13 @@
 // (Pinterest is the exception — it takes the image URL directly).
 import { useEffect, useState } from "react";
 import { Check, Copy, Download, ImageIcon, X } from "lucide-react";
-import { FaBluesky, FaFacebook, FaLinkedin, FaPinterest, FaThreads, FaXTwitter } from "react-icons/fa6";
-import type { IconType } from "react-icons";
+import { NETWORK_BY_KEY, measure, type NetworkKey } from "@/lib/networks";
 import { DbPost } from "@/types/posts";
 import { ImageUploader, type PostImage } from "./ImageUploader";
 
+// Icon, color and length limit come from lib/networks; this adds how to open each composer
 type Network = {
-  key: string;
-  label: string;
-  icon: IconType;
-  color: string;
+  key: NetworkKey;
   href: (text: string, link: string, image: string | null) => string;
   // Facebook won't take pre-filled text, so the text goes to the clipboard first
   copiesText?: boolean;
@@ -27,45 +24,27 @@ const enc = encodeURIComponent;
 const NETWORKS: Network[] = [
   {
     key: "linkedin",
-    label: "LinkedIn",
-    icon: FaLinkedin,
-    color: "#0A66C2",
     href: (text, link) => `https://www.linkedin.com/feed/?shareActive=true&text=${enc(`${text}\n\n${link}`)}`,
   },
   {
     key: "x",
-    label: "X",
-    icon: FaXTwitter,
-    color: "#000000",
     href: (text, link) => `https://twitter.com/intent/tweet?text=${enc(text)}&url=${enc(link)}`,
   },
   {
     key: "facebook",
-    label: "Facebook",
-    icon: FaFacebook,
-    color: "#1877F2",
     href: (_text, link) => `https://www.facebook.com/sharer/sharer.php?u=${enc(link)}`,
     copiesText: true,
   },
   {
     key: "threads",
-    label: "Threads",
-    icon: FaThreads,
-    color: "#000000",
     href: (text, link) => `https://www.threads.net/intent/post?text=${enc(`${text} ${link}`)}`,
   },
   {
     key: "bluesky",
-    label: "Bluesky",
-    icon: FaBluesky,
-    color: "#1185FE",
     href: (text, link) => `https://bsky.app/intent/compose?text=${enc(`${text} ${link}`)}`,
   },
   {
     key: "pinterest",
-    label: "Pinterest",
-    icon: FaPinterest,
-    color: "#E60023",
     href: (text, link, image) =>
       `https://pinterest.com/pin/create/button/?url=${enc(link)}&media=${enc(image ?? "")}&description=${enc(text)}`,
     needsImage: true,
@@ -120,7 +99,7 @@ export function ShareDialog({
   async function share(n: Network) {
     if (n.copiesText) {
       await navigator.clipboard.writeText(fullText);
-      flash(`Text copied — paste it into ${n.label}`);
+      flash(`Text copied — paste it into ${NETWORK_BY_KEY[n.key].label}`);
     }
     window.open(n.href(post.content, post.tracked_link, image?.url ?? null), "_blank", "noopener,noreferrer,width=720,height=640");
     setShared(true);
@@ -192,17 +171,35 @@ export function ShareDialog({
         <div className="text-[11px] font-semibold text-muted uppercase tracking-widest mb-2">Share to</div>
         <div className="grid grid-cols-3 gap-2">
           {NETWORKS.map((n) => {
+            const meta = NETWORK_BY_KEY[n.key];
+            const fit = measure(meta, post.content, post.tracked_link);
             const disabled = n.needsImage && !image;
             return (
               <button
                 key={n.key}
                 onClick={() => share(n)}
                 disabled={disabled}
-                title={disabled ? "Add an image to pin it" : `Share on ${n.label}`}
-                className="flex items-center justify-center gap-2 rounded-xl border border-line px-3 py-2.5 text-body-sm font-medium text-ink transition-colors hover:bg-surface-muted disabled:opacity-40 disabled:cursor-not-allowed"
+                title={
+                  disabled
+                    ? "Add an image to pin it"
+                    : fit.fits
+                      ? `Share on ${meta.label}`
+                      : `${Math.abs(fit.remaining)} characters over ${meta.label}'s ${meta.limit.toLocaleString()} limit — trim it in the composer`
+                }
+                className={`flex flex-col items-center justify-center gap-0.5 rounded-xl border px-3 py-2.5 text-body-sm font-medium transition-colors disabled:opacity-40 disabled:cursor-not-allowed ${
+                  fit.fits ? "text-ink hover:brightness-95" : "border-line bg-surface-muted text-muted hover:bg-surface"
+                }`}
+                style={fit.fits ? { borderColor: `${meta.color}33`, backgroundColor: `${meta.color}0F` } : undefined}
               >
-                <n.icon className="h-4 w-4 shrink-0" style={{ color: n.color }} aria-hidden />
-                {n.label}
+                <span className="flex items-center gap-2">
+                  <meta.icon
+                    className={`h-4 w-4 shrink-0 ${fit.fits ? "" : "opacity-40 grayscale"}`}
+                    style={fit.fits ? { color: meta.color } : undefined}
+                    aria-hidden
+                  />
+                  {meta.label}
+                </span>
+                {!fit.fits && <span className="text-[11px] font-normal text-red-500">{Math.abs(fit.remaining)} over</span>}
               </button>
             );
           })}
