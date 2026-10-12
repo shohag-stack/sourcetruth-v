@@ -56,14 +56,32 @@ export function ShareDialog({
   onClose,
   onImageChange,
   onMarkPosted,
+  onXContentChange,
 }: {
   post: DbPost;
   onClose: () => void;
   onImageChange: (image: PostImage | null) => Promise<void>;
   onMarkPosted: () => void;
+  onXContentChange: (text: string) => Promise<void>;
 }) {
   const [notice, setNotice] = useState<string | null>(null);
   const [shared, setShared] = useState(false);
+  const [xDraft, setXDraft] = useState<string | null>(null); // editing the X version inline
+  const [savingX, setSavingX] = useState(false);
+
+  // X gets its short version when the post has one
+  const textFor = (key: NetworkKey) => (key === "x" && post.x_content ? post.x_content : post.content);
+  const xFit = measure(NETWORK_BY_KEY.x, textFor("x"), post.tracked_link);
+  const xDraftFit = measure(NETWORK_BY_KEY.x, xDraft ?? "", post.tracked_link);
+
+  async function saveXVersion() {
+    if (xDraft === null) return;
+    setSavingX(true);
+    await onXContentChange(xDraft);
+    setSavingX(false);
+    setXDraft(null);
+    flash(xDraft.trim() ? "X version saved" : "X version removed");
+  }
   const image = post.image_url && post.image_file_id ? { url: post.image_url, fileId: post.image_file_id } : null;
   const fullText = `${post.content}\n\n${post.tracked_link}`;
 
@@ -101,7 +119,7 @@ export function ShareDialog({
       await navigator.clipboard.writeText(fullText);
       flash(`Text copied — paste it into ${NETWORK_BY_KEY[n.key].label}`);
     }
-    window.open(n.href(post.content, post.tracked_link, image?.url ?? null), "_blank", "noopener,noreferrer,width=720,height=640");
+    window.open(n.href(textFor(n.key), post.tracked_link, image?.url ?? null), "_blank", "noopener,noreferrer,width=720,height=640");
     setShared(true);
   }
 
@@ -172,7 +190,7 @@ export function ShareDialog({
         <div className="grid grid-cols-3 gap-2">
           {NETWORKS.map((n) => {
             const meta = NETWORK_BY_KEY[n.key];
-            const fit = measure(meta, post.content, post.tracked_link);
+            const fit = measure(meta, textFor(n.key), post.tracked_link);
             const disabled = n.needsImage && !image;
             return (
               <button
@@ -208,6 +226,54 @@ export function ShareDialog({
           <ImageIcon className="h-3.5 w-3.5 mt-0.5 shrink-0" aria-hidden />
           Social sites don&apos;t let share buttons attach images — copy or download it above and add it in the composer.
         </p>
+
+        {/* X version: write one when the post is too long for X, or edit the saved one */}
+        {xDraft !== null ? (
+          <div className="mt-4 rounded-xl border border-line bg-surface-muted p-3.5">
+            <div className="flex items-center justify-between mb-2">
+              <span className="text-[12px] font-semibold text-ink">X version</span>
+              <span className={`text-[12px] tabular font-medium ${xDraft.trim() && !xDraftFit.fits ? "text-red-500" : "text-muted"}`}>
+                {xDraftFit.remaining >= 0 ? `${xDraftFit.remaining} left` : `${Math.abs(xDraftFit.remaining)} over`}
+              </span>
+            </div>
+            <textarea
+              value={xDraft}
+              onChange={(e) => setXDraft(e.target.value)}
+              rows={3}
+              autoFocus
+              className="w-full resize-none rounded-lg border border-line bg-surface px-3 py-2 text-[14px] leading-relaxed text-ink outline-none focus:border-primary focus:ring-2 focus:ring-primary-tint"
+            />
+            <div className="mt-2 flex justify-end gap-2">
+              <button onClick={() => setXDraft(null)} className="btn-ghost !py-1.5 text-[12px]">
+                Cancel
+              </button>
+              <button
+                onClick={saveXVersion}
+                disabled={savingX || (xDraft.trim() !== "" && !xDraftFit.fits)}
+                className="btn-primary !py-1.5 !px-3 text-[12px] disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {savingX ? "Saving…" : "Save X version"}
+              </button>
+            </div>
+          </div>
+        ) : !xFit.fits ? (
+          <div className="mt-4 flex items-center justify-between gap-3 rounded-xl border border-dashed border-line px-4 py-3">
+            <span className="text-body-sm text-ink">Too long for X ({Math.abs(xFit.remaining)} over).</span>
+            <button
+              onClick={() => setXDraft(post.x_content ?? post.content)}
+              className="text-[12px] font-medium text-primary hover:text-primary-hover whitespace-nowrap"
+            >
+              Write X version →
+            </button>
+          </div>
+        ) : post.x_content ? (
+          <p className="mt-3 text-[12px] text-muted">
+            X uses your short version.{" "}
+            <button onClick={() => setXDraft(post.x_content ?? "")} className="font-medium text-primary hover:text-primary-hover">
+              Edit
+            </button>
+          </p>
+        ) : null}
 
         {/* Nudge to mark as posted once they've shared it */}
         {shared && post.status === "ready" && (

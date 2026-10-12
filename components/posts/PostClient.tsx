@@ -9,7 +9,6 @@ import { metaFor } from "@/lib/metaFor";
 import { countryFlag } from "@/lib/countryFlag";
 import { Share2, Trash2 } from "lucide-react";
 import { ShareDialog } from "./ShareDialog";
-import type { PostImage } from "./ImageUploader";
 
 const STATUS_STYLES: Record<string, string> = {
   posted: "badge-success",
@@ -101,14 +100,14 @@ export default function PostClient({
   }
 
 
-  async function setImage(id: string, image: PostImage | null) {
+  async function updatePost(id: string, body: Record<string, unknown>, failMessage: string) {
     const res = await fetch(`/api/posts/${id}`, {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ image }),
+      body: JSON.stringify(body),
     });
     if (!res.ok) {
-      setActionError("Couldn't save the image. Please try again.");
+      setActionError(failMessage);
       return;
     }
     const updated: DbPost = await res.json();
@@ -393,7 +392,10 @@ export default function PostClient({
           <ShareDialog
             post={sharingPost}
             onClose={() => setSharingId(null)}
-            onImageChange={(image) => setImage(sharingPost.id, image)}
+            onImageChange={(image) => updatePost(sharingPost.id, { image }, "Couldn't save the image. Please try again.")}
+            onXContentChange={(text) =>
+              updatePost(sharingPost.id, { x_content: text }, "Couldn't save the X version. Please try again.")
+            }
             onMarkPosted={() => {
               markPosted(sharingPost.id);
               setSharingId(null);

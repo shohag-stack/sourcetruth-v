@@ -18,7 +18,8 @@ export async function POST(request: Request) {
   // at click time, not a declared plan, so we no longer require picking
   // one when creating a post. Column stays on the table (see note below),
   // it just isn't collected or shown as attribution anymore.
-  const { content, channel, destination, campaign, site_id, image_url, image_file_id } = await request.json();
+  const { content, channel, destination, campaign, site_id, image_url, image_file_id, x_content } = await request.json();
+  const xContent = typeof x_content === "string" && x_content.trim() ? x_content.trim().slice(0, 1000) : null;
   // Images must come from our own ImageKit storage (uploaded via /api/imagekit/auth)
   const hasImage = isOwnImageUrl(image_url);
   if (!content || !destination || !site_id) {
@@ -66,6 +67,7 @@ export async function POST(request: Request) {
       status: "ready",
       image_url: hasImage ? image_url : null,
       image_file_id: hasImage && typeof image_file_id === "string" ? image_file_id : null,
+      x_content: xContent,
     })
     .select()
     .single();
