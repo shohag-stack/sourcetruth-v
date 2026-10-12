@@ -85,22 +85,21 @@ export async function POST(req: NextRequest) {
     {/*  checking subscriptions  */}
 
 
-    const { data: userRow } = await supabase
-      .from("users")
-      .select("plan")
-      .eq("id", site.user_id)
-      .maybeSingle();
-
-    const plan = userRow?.plan ?? "free";
-
     const startOfMonth = new Date();
     startOfMonth.setDate(1);
     startOfMonth.setHours(0, 0, 0, 0);
-    const { count:monthlyCount } = await supabase
-      .from("pageviews")
-      .select("id", { count: "exact", head: true })
-      .eq("site_id", site.id)
-      .gte("visited_at", startOfMonth.toISOString());
+
+    // Plan and this month's usage are independent — fetch together
+    const [{ data: userRow }, { count: monthlyCount }] = await Promise.all([
+      supabase.from("users").select("plan").eq("id", site.user_id).maybeSingle(),
+      supabase
+        .from("pageviews")
+        .select("id", { count: "exact", head: true })
+        .eq("site_id", site.id)
+        .gte("visited_at", startOfMonth.toISOString()),
+    ]);
+
+    const plan = userRow?.plan ?? "free";
 
     const LIMITS: Record<string, number> = {
       free: Number(process.env.NEXT_PUBLIC_FREE),
@@ -130,36 +129,38 @@ export async function POST(req: NextRequest) {
 
     const { device, browser, os } = parseUA(ua);
 
-    // ── 3. Detect if this session already has pageviews ───────
-    // If yes → previous pageview in this session was NOT a bounce
-    const { count: sessionCount } = await supabase
-      .from("pageviews")
-      .select("id", { count: "exact", head: true })
-      .eq("site_id", site.id)
-      .eq("session_id", session_id);
+    // ── 3 + 4. Session so far, and new vs returning visitor (by ip_hash) ──
+    const [{ count: sessionCount }, { count: prevVisits }] = await Promise.all([
+      supabase
+        .from("pageviews")
+        .select("id", { count: "exact", head: true })
+        .eq("site_id", site.id)
+        .eq("session_id", session_id),
+      supabase
+        .from("pageviews")
+        .select("id", { count: "exact", head: true })
+        .eq("site_id", site.id)
+        .eq("ip_hash", ipHash),
+    ]);
 
     const isFirstInSession = (sessionCount ?? 0) === 0;
-
-    // If this is NOT the first pageview, mark previous ones as not bounced
-    if (!isFirstInSession) {
-      await supabase
-        .from("pageviews")
-        .update({ is_bounce: false })
-        .eq("site_id", site.id)
-        .eq("session_id", session_id);
-    }
-
-    // ── 4. Detect new vs returning visitor (by ip_hash) ───────
-    const { count: prevVisits } = await supabase
-      .from("pageviews")
-      .select("id", { count: "exact", head: true })
-      .eq("site_id", site.id)
-      .eq("ip_hash", ipHash);
-
     const isNewVisitor = (prevVisits ?? 0) === 0;
 
-    // ── 5. Insert pageview ────────────────────────────────────
-    await supabase.from("pageviews").insert({
+    // If this is NOT the first pageview, the earlier ones weren't bounces.
+    // Only rows before `visitedAt`, so running this alongside the insert
+    // below can never touch the new row.
+    const visitedAt = new Date().toISOString();
+    const markNotBounced = isFirstInSession
+      ? Promise.resolve()
+      : supabase
+          .from("pageviews")
+          .update({ is_bounce: false })
+          .eq("site_id", site.id)
+          .eq("session_id", session_id)
+          .lt("visited_at", visitedAt);
+
+    // ── 5. Insert pageview (alongside the bounce update) ──────
+    const insertPageview = supabase.from("pageviews").insert({
       site_id: site.id,
       user_id: site.user_id,
       session_id,
@@ -174,8 +175,9 @@ export async function POST(req: NextRequest) {
       screen_width: screen_width ?? null,
       is_bounce: true, // default true — updated if they visit another page
       is_new_visitor: isNewVisitor,
-      visited_at: new Date().toISOString(),
+      visited_at: visitedAt,
     });
+    await Promise.all([markNotBounced, insertPageview]);
 
     return withCors(
       NextResponse.json({ ok: true, new_visitor: isNewVisitor, country, city }),

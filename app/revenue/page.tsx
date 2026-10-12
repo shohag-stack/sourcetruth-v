@@ -1,6 +1,6 @@
 // app/revenue/page.tsx
 import { AppShell } from "@/components/layout/AppShell";
-import { createClient } from "@/utils/supabase/server";
+import { createClient, getAuthUser } from "@/utils/supabase/server";
 import { redirect } from "next/navigation";
 import {
   formatMoney,
@@ -36,7 +36,7 @@ export default async function RevenuePage() {
   const supabase = await createClient();
   const {
     data: { user },
-  } = await supabase.auth.getUser();
+  } = await getAuthUser();
   if (!user) redirect("/auth/login");
 
   const now = new Date();

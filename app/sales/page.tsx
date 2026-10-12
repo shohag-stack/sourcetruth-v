@@ -1,6 +1,6 @@
 // app/revenue/sales/page.tsx
 import { AppShell } from '@/components/layout/AppShell'
-import { createClient } from '@/utils/supabase/server'
+import { createClient, getAuthUser } from '@/utils/supabase/server'
 import { redirect } from 'next/navigation'
 import Link from 'next/link'
 import { metaFor } from '@/lib/metaFor'
@@ -45,7 +45,7 @@ export default async function SalesPage({
 }) {
   const params = await searchParams
   const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
+  const { data: { user } } = await getAuthUser()
   if (!user) redirect('/auth/login')
 
   const page = Math.max(1, parseInt(params.page ?? '1', 10))

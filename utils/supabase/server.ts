@@ -1,6 +1,7 @@
 // utils/supabase/server.ts
 import { createServerClient } from '@supabase/ssr'
 import { cookies } from 'next/headers'
+import { cache } from 'react'
 
 export async function createClient() {
   const cookieStore = await cookies()   // reads cookies itself — nothing passed in
@@ -27,3 +28,11 @@ export async function createClient() {
     }
   )
 }
+
+// One Supabase Auth round trip per page render. Pages and AppShell both need the
+// user; without this each called getUser() separately (a network request each).
+// Same return shape as supabase.auth.getUser(). Use in Server Components only.
+export const getAuthUser = cache(async () => {
+  const supabase = await createClient()
+  return supabase.auth.getUser()
+})

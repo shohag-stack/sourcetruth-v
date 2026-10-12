@@ -14,7 +14,7 @@ import {
   timeAgo,
   trendLabel,
 } from "@/lib/utils";
-import { createClient } from "@/utils/supabase/server";
+import { createClient, getAuthUser } from "@/utils/supabase/server";
 import { redirect } from "next/navigation";
 import Link from "next/link";
 import { metaFor } from "@/lib/metaFor";
@@ -31,7 +31,7 @@ export default async function DashboardPage() {
   const supabase = await createClient();
   const {
     data: { user },
-  } = await supabase.auth.getUser();
+  } = await getAuthUser();
   if (!user) redirect("/auth/login");
 
   const now = new Date();

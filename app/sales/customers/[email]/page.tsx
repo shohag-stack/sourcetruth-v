@@ -2,7 +2,7 @@
 import Link from 'next/link'
 import { AppShell } from '@/components/layout/AppShell'
 import { countryFlag } from '@/lib/countryFlag'
-import { createClient } from '@/utils/supabase/server'
+import { createClient, getAuthUser } from '@/utils/supabase/server'
 import { redirect, notFound } from 'next/navigation'
 
 // ─── Helpers (mirrors app/revenue/page.tsx — worth extracting to
@@ -94,7 +94,7 @@ export default async function CustomerJourneyPage({
   const email = decodeURIComponent(encodedEmail)
 
   const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
+  const { data: { user } } = await getAuthUser()
   if (!user) redirect('/auth/login')
 
   const { data: site } = await supabase

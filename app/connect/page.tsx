@@ -1,5 +1,5 @@
 // app/connect/page.tsx
-import { createClient } from "@/utils/supabase/server";
+import { createClient, getAuthUser } from "@/utils/supabase/server";
 import ConnectClient from "@/components/connect/ConnectClient";
 import { AppShell } from "@/components/layout/AppShell";
 
@@ -7,7 +7,7 @@ export default async function ConnectPage() {
   const supabase = await createClient();
   const {
     data: { user },
-  } = await supabase.auth.getUser();
+  } = await getAuthUser();
 
   const { data: site } = await supabase
     .from("sites")

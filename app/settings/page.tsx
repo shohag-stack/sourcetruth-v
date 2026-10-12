@@ -1,12 +1,12 @@
 // app/settings/page.tsx
-import { createClient } from '@/utils/supabase/server'
+import { createClient, getAuthUser } from '@/utils/supabase/server'
 import { AppShell } from '@/components/layout/AppShell'
 import SettingsClient from '@/components/settings/SettingsClient'
 import { redirect } from 'next/navigation'
 
 export default async function SettingsPage() {
   const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
+  const { data: { user } } = await getAuthUser()
   if (!user) redirect('/auth/login')
 
   const { data: profile } = await supabase
