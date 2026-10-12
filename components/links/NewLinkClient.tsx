@@ -1,20 +1,22 @@
 'use client'
 // components/links/NewLinkClient.tsx
-import { useState } from 'react'
+import { useMemo, useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { PLATFORM_META, SocialChannel } from '@/lib/dummy-data'
+import {
+  ArrowRight,
+  Check,
+  CircleDollarSign,
+  Globe,
+  Hash,
+  Info,
+  Link2,
+  Loader2,
+  MousePointerClick,
+  ShoppingBag,
+  Users,
+} from 'lucide-react'
 import { ImageUploader, type PostImage } from '@/components/posts/ImageUploader'
-
-const CHANNELS: SocialChannel[] = ['linkedin', 'twitter', 'instagram', 'facebook', 'threads', 'bluesky']
-
-const CHAR_LIMITS: Partial<Record<SocialChannel, number>> = {
-  twitter: 280,
-  threads: 500,
-  linkedin: 3000,
-  facebook: 63206,
-  instagram: 2200,
-  bluesky: 300,
-}
+import { MAX_POST_LENGTH, NETWORKS, measure } from '@/lib/networks'
 
 interface Site {
   id: string
@@ -24,22 +26,48 @@ interface Site {
 
 interface NewLinkClientProps {
   sites: Site[]
+  authorName: string
 }
 
-export default function NewLinkClient({ sites }: NewLinkClientProps) {
+function parseUrl(value: string): URL | null {
+  try {
+    const url = new URL(value.trim())
+    return url.protocol === 'http:' || url.protocol === 'https:' ? url : null
+  } catch {
+    return null
+  }
+}
+
+export default function NewLinkClient({ sites, authorName }: NewLinkClientProps) {
   const router = useRouter()
   const [content, setContent] = useState('')
   const [destination, setDestination] = useState('')
-  const [channel, setChannel] = useState<SocialChannel>('linkedin')
+  const [destinationTouched, setDestinationTouched] = useState(false)
   const [campaign, setCampaign] = useState('')
   const [image, setImage] = useState<PostImage | null>(null)
   const [siteId, setSiteId] = useState<string | null>(sites[0]?.id ?? null)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
-  const limit = CHAR_LIMITS[channel] || 3000
-  const overLimit = content.length > limit
-  const canSubmit = destination.trim() && content.trim() && !overLimit && !loading && siteId
+  const destinationUrl = useMemo(() => parseUrl(destination), [destination])
+  const destinationInvalid = destination.trim() !== '' && !destinationUrl
+  // Same length as the real link: the slug is 7 characters
+  const sampleTrackedLink = useMemo(() => {
+    if (!destinationUrl) return null
+    const url = new URL(destinationUrl.toString())
+    url.searchParams.set('st', 'xxxxxxx')
+    return url.toString()
+  }, [destinationUrl])
+  const fits = NETWORKS.map((n) => ({ network: n, ...measure(n, content, sampleTrackedLink) }))
+  const fitCount = fits.filter((f) => f.fits).length
+  // Only blocked when the post fits nowhere at all
+  const overLimit = Array.from(content).length > MAX_POST_LENGTH
+  const canSubmit = Boolean(content.trim() && destinationUrl && !overLimit && !loading && siteId)
+
+  // What the tracked link will look like — the real slug is generated on save
+  const trackedPreview = destinationUrl
+    ? `${destinationUrl.host}${destinationUrl.pathname === '/' ? '' : destinationUrl.pathname}?st=•••••••`
+    : null
 
   async function handleGenerate() {
     if (!canSubmit) return
@@ -52,8 +80,9 @@ export default function NewLinkClient({ sites }: NewLinkClientProps) {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           content,
-          destination,
-          channel,
+          destination: destinationUrl!.toString(),
+          // The platform picker was removed; attribution comes from the real referrer
+          channel: 'linkedin',
           campaign: campaign || null,
           site_id: siteId,
           image_url: image?.url ?? null,
@@ -70,180 +99,258 @@ export default function NewLinkClient({ sites }: NewLinkClientProps) {
       }
 
       router.push('/posts')
-    } catch (e) {
+    } catch {
       setError('Network error — please try again.')
       setLoading(false)
     }
   }
 
+  const sectionLabel = 'flex items-center gap-2 text-[12px] font-semibold text-ink mb-2'
+
   return (
-      <div className="p-8 max-w-4xl mx-auto">
-        <div className="mb-8">
-          <h1 className="text-[22px] font-bold text-[#0F172A] mb-0.5">New Post</h1>
-          <p className="text-[#94A3B8] text-sm">
-            Write your post, generate a tracked link, save it. Come back later to copy and post manually.
+    <div className="p-8 max-w-6xl mx-auto">
+      {/* Header */}
+      <div className="flex items-start justify-between gap-4 flex-wrap mb-6">
+        <div>
+          <h1 className="text-heading-lg text-ink mb-0.5">New post</h1>
+          <p className="text-body-sm text-muted">
+            Write it once, get a tracked link, then share it anywhere from Your Posts.
           </p>
         </div>
-
-        {sites.length === 0 && (
-          <div className="card shadow-card p-5 mb-6 border-[#FDE68A] bg-[#FFF8E7]">
-            <p className="text-[13px] text-[#92400E]">
-              You need to add a site before creating tracked links.{' '}
-              <a href="/connect" className="underline font-medium">Add one here</a>.
-            </p>
-          </div>
+        {sites.length > 1 && (
+          <label className="flex items-center gap-2 text-body-sm text-muted">
+            <Globe className="h-4 w-4" aria-hidden />
+            <select
+              value={siteId ?? ''}
+              onChange={(e) => setSiteId(e.target.value)}
+              className="input !w-auto !py-2 cursor-pointer"
+              aria-label="Site"
+            >
+              {sites.map((s) => (
+                <option key={s.id} value={s.id}>
+                  {s.domain}
+                </option>
+              ))}
+            </select>
+          </label>
         )}
+      </div>
 
-        {error && (
-          <div className="card shadow-card p-4 mb-6 border-[#FCA5A5] bg-[#FEF2F2]">
-            <p className="text-[13px] text-[#B91C1C]">{error}</p>
-          </div>
-        )}
+      {sites.length === 0 && (
+        <div className="card p-4 mb-6 bg-primary-tint border-primary/20 text-body-sm text-ink flex items-center gap-2">
+          <Info className="h-4 w-4 text-primary shrink-0" aria-hidden />
+          Add a site before creating tracked links.{' '}
+          <a href="/connect" className="text-primary font-medium underline">
+            Connect a site →
+          </a>
+        </div>
+      )}
 
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+      {error && (
+        <div className="card p-4 mb-6 border-red-200 bg-red-50 text-body-sm text-red-700">{error}</div>
+      )}
 
-          <div className="lg:col-span-2 space-y-4">
-
-            {sites.length > 1 && (
-              <div className="card shadow-card p-5">
-                <label className="block text-[11px] font-semibold text-[#94A3B8] uppercase tracking-widest mb-3">
-                  Site
-                </label>
-                <select
-                  value={siteId ?? ''}
-                  onChange={e => setSiteId(e.target.value)}
-                  className="input">
-                  {sites.map(s => (
-                    <option key={s.id} value={s.id}>{s.name} ({s.domain})</option>
-                  ))}
-                </select>
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+        {/* ── Composer ─────────────────────────────────────── */}
+        <div className="lg:col-span-7 card shadow-card divide-y divide-line">
+          {/* Text */}
+          <section className="p-5">
+            <div className={sectionLabel}>Post</div>
+            <textarea
+              value={content}
+              onChange={(e) => setContent(e.target.value)}
+              placeholder="What are you sharing? Write it like you'd post it…"
+              rows={8}
+              className="w-full resize-none bg-transparent text-[15px] leading-relaxed text-ink placeholder-muted outline-none"
+              autoFocus
+            />
+            {/* Networks light up in their brand color while the post (+ link) fits */}
+            <div className="pt-3 border-t border-line mt-1">
+              <div className="flex items-center justify-between gap-3 mb-2">
+                <span className="text-[11px] font-semibold text-muted uppercase tracking-widest">Fits on</span>
+                <span className="text-[12px] text-muted tabular">
+                  {content ? `${fitCount} of ${NETWORKS.length} networks` : `${Array.from(content).length} characters`}
+                  {sampleTrackedLink ? ' · includes link' : ''}
+                </span>
               </div>
-            )}
-
-            {/* <div className="card shadow-card p-5">
-              <label className="block text-[11px] font-semibold text-[#94A3B8] uppercase tracking-widest mb-3">
-                Platform
-              </label>
-              <div className="flex flex-wrap gap-2">
-                {CHANNELS.map(ch => {
-                  const meta = PLATFORM_META[ch]
-                  const selected = channel === ch
+              <div className="flex items-center gap-2 flex-wrap">
+                {fits.map(({ network: n, fits: ok, remaining }) => {
+                  const near = ok && remaining <= Math.max(20, n.limit * 0.1)
                   return (
-                    <button key={ch} onClick={() => setChannel(ch)}
-                      className="flex items-center gap-2 px-3 py-2 rounded-xl text-[12px] font-medium border transition-all"
-                      style={selected
-                        ? { backgroundColor: meta.bgColor, borderColor: meta.color, color: meta.color }
-                        : { backgroundColor: '#F8F9FC', borderColor: '#E8ECF2', color: '#475569' }}>
-                      <span className="font-bold">{meta.icon}</span>
-                      {meta.name}
-                    </button>
+                    <span
+                      key={n.key}
+                      title={
+                        ok
+                          ? `${n.label}: ${remaining.toLocaleString()} characters left`
+                          : `${n.label}: ${Math.abs(remaining).toLocaleString()} characters over the ${n.limit.toLocaleString()} limit`
+                      }
+                      className={`inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-[12px] font-medium transition-all duration-200 ${
+                        ok ? 'text-ink' : 'border-line bg-surface-muted text-muted'
+                      }`}
+                      style={ok ? { borderColor: `${n.color}33`, backgroundColor: `${n.color}0F` } : undefined}
+                    >
+                      <n.icon
+                        className={`h-3.5 w-3.5 transition-all duration-200 ${ok ? '' : 'opacity-40 grayscale'}`}
+                        style={ok ? { color: n.color } : undefined}
+                        aria-hidden
+                      />
+                      {n.label}
+                      {content && (
+                        <span
+                          className={`tabular font-normal ${
+                            !ok ? 'text-red-500' : near ? 'text-amber-600' : 'text-muted'
+                          }`}
+                        >
+                          {ok ? (near ? `${remaining} left` : <Check className="h-3 w-3 inline" aria-label="fits" />) : `${Math.abs(remaining)} over`}
+                        </span>
+                      )}
+                    </span>
                   )
                 })}
               </div>
-            </div> */}
-
-            <div className="card shadow-card p-5">
-              <label className="block text-[11px] font-semibold text-[#94A3B8] uppercase tracking-widest mb-2">
-                Post content
-              </label>
-              <textarea
-                value={content}
-                onChange={e => setContent(e.target.value)}
-                placeholder={`Write your ${PLATFORM_META[channel].name} post here...`}
-                rows={10}
-                className="w-full resize-none text-[14px] text-[#0F172A] placeholder-[#CBD5E1] outline-none leading-relaxed"
-              />
-              <div className="flex items-center justify-between pt-3 border-t border-[#E8ECF2] mt-2">
-                <span className="text-[11px] text-[#94A3B8]">
-                  {PLATFORM_META[channel].name} limit: {limit.toLocaleString()} chars
-                </span>
-                <span className={`text-[12px] tabular font-medium ${overLimit ? 'text-[#EF4444]' : content.length > limit * 0.9 ? 'text-[#F59E0B]' : 'text-[#94A3B8]'}`}>
-                  {content.length}/{limit}
-                </span>
-              </div>
             </div>
+          </section>
 
-            <div className="card shadow-card p-5">
-              <label className="block text-[11px] font-semibold text-[#94A3B8] uppercase tracking-widest mb-2">
-                Image <span className="text-[#CBD5E1] font-normal normal-case">(optional)</span>
-              </label>
-              <ImageUploader value={image} onChange={setImage} />
-              <p className="text-[11px] text-[#94A3B8] mt-2">
-                Shown in your share kit — copy or download it when you post. 1200×628 works well everywhere.
-              </p>
+          {/* Image */}
+          <section className="p-5">
+            <div className={sectionLabel}>
+              Image <span className="font-normal text-muted">optional</span>
             </div>
+            <ImageUploader value={image} onChange={setImage} />
+          </section>
 
-            <div className="card shadow-card p-5">
-              <label className="block text-[11px] font-semibold text-[#94A3B8] uppercase tracking-widest mb-2">
-                Destination URL <span className="text-red-400">*</span>
-              </label>
-              <input type="url" value={destination}
-                onChange={e => setDestination(e.target.value)}
+          {/* Destination */}
+          <section className="p-5">
+            <label htmlFor="destination" className={sectionLabel}>
+              Destination URL
+            </label>
+            <div className="relative">
+              <Link2 className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted" aria-hidden />
+              <input
+                id="destination"
+                type="url"
+                value={destination}
+                onChange={(e) => setDestination(e.target.value)}
+                onBlur={() => setDestinationTouched(true)}
                 placeholder="https://yoursite.com/product"
-                className="input mb-2" />
-              <p className="text-[11px] text-[#94A3B8]">
-                Where people land after clicking your tracked link
+                className={`input !pl-10 ${destinationTouched && destinationInvalid ? '!border-red-400 focus:!ring-red-100' : ''}`}
+                aria-invalid={destinationTouched && destinationInvalid}
+              />
+            </div>
+            {destinationTouched && destinationInvalid ? (
+              <p className="mt-2 text-[12px] text-red-600">Enter a full URL, starting with https://</p>
+            ) : trackedPreview ? (
+              <p className="mt-2 text-[12px] text-muted">
+                Tracked link: <span className="font-mono text-primary">{trackedPreview}</span>
               </p>
-            </div>
+            ) : (
+              <p className="mt-2 text-[12px] text-muted">Where people land when they click your link.</p>
+            )}
+          </section>
 
-            <div className="card shadow-card p-5">
-              <label className="block text-[11px] font-semibold text-[#94A3B8] uppercase tracking-widest mb-2">
-                Campaign tag <span className="text-[#CBD5E1] font-normal normal-case">(optional)</span>
-              </label>
-              <input type="text" value={campaign}
-                onChange={e => setCampaign(e.target.value.toLowerCase().replace(/\s+/g, '-'))}
-                placeholder="e.g. june-launch"
-                className="input font-mono" />
-              <p className="text-[11px] text-[#94A3B8] mt-2">
-                Group multiple posts under one campaign to see combined revenue
-              </p>
+          {/* Campaign */}
+          <section className="p-5">
+            <label htmlFor="campaign" className={sectionLabel}>
+              Campaign <span className="font-normal text-muted">optional</span>
+            </label>
+            <div className="relative">
+              <Hash className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted" aria-hidden />
+              <input
+                id="campaign"
+                type="text"
+                value={campaign}
+                onChange={(e) => setCampaign(e.target.value.toLowerCase().replace(/\s+/g, '-'))}
+                placeholder="june-launch"
+                className="input !pl-10 font-mono"
+              />
             </div>
-          </div>
-
-          <div className="space-y-4">
-            <div className="card shadow-card p-5">
-              <div className="text-[11px] font-bold text-[#94A3B8] uppercase tracking-widest mb-3">What happens next</div>
-              <div className="space-y-3">
-                {[
-                  { icon: '⚡', text: 'A tracked link is generated for your post' },
-                  { icon: '💾', text: 'Your post + link are saved here' },
-                  { icon: '📋', text: 'Come back anytime to copy content + link' },
-                  { icon: '📤', text: 'Paste manually into LinkedIn, Twitter, wherever' },
-                  { icon: '💰', text: 'SourceTruth tracks every click and sale' },
-                ].map((item, i) => (
-                  <div key={i} className="flex items-start gap-3 text-[13px] text-[#475569]">
-                    <span className="text-base flex-shrink-0">{item.icon}</span>
-                    {item.text}
-                  </div>
-                ))}
-              </div>
-            </div>
-
-            <div className="bg-[#EEF2FF] rounded-2xl p-4">
-              <div className="text-[11px] font-bold text-[#6366F1] uppercase tracking-widest mb-2">Tracked for you</div>
-              <div className="space-y-1 text-[12px] text-[#4338CA]">
-                <div>✓ Total clicks</div>
-                <div>✓ Unique clicks</div>
-                <div>✓ Sales & conversion rate</div>
-                <div>✓ Revenue by payment provider</div>
-              </div>
-            </div>
-
-            <div className="bg-[#FFF8E7] border border-[#FDE68A] rounded-2xl p-4">
-              <div className="text-[11px] font-bold text-[#92400E] uppercase tracking-widest mb-1">No social API</div>
-              <p className="text-[12px] text-[#92400E] leading-relaxed">
-                Likes, reach, and impressions are not tracked — those need social API access which we don't use.
-              </p>
-            </div>
-
-            <button
-              onClick={handleGenerate}
-              disabled={!canSubmit}
-              className="w-full btn-primary py-3 text-base disabled:opacity-50 disabled:cursor-not-allowed">
-              {loading ? 'Saving...' : '⚡ Generate Link & Save'}
-            </button>
-          </div>
+            <p className="mt-2 text-[12px] text-muted">Group posts to see their combined revenue.</p>
+          </section>
         </div>
+
+        {/* ── Preview + save ───────────────────────────────── */}
+        <aside className="lg:col-span-5 space-y-4 lg:sticky lg:top-6">
+          <div>
+            <div className="text-[11px] font-semibold text-muted uppercase tracking-widest mb-2">Preview</div>
+            <div className="card shadow-card overflow-hidden">
+              <div className="p-4">
+                <div className="flex items-center gap-2.5 mb-3">
+                  <div className="h-9 w-9 rounded-full gradient-brand flex items-center justify-center text-white text-sm font-bold">
+                    {authorName.charAt(0).toUpperCase()}
+                  </div>
+                  <div>
+                    <div className="text-[13px] font-semibold text-ink leading-tight">{authorName}</div>
+                    <div className="text-[11px] text-muted">Just now</div>
+                  </div>
+                </div>
+                <p
+                  className={`text-[14px] leading-relaxed whitespace-pre-wrap line-clamp-6 ${
+                    content ? 'text-ink' : 'text-muted'
+                  }`}
+                >
+                  {content || 'Your post will appear here as you type.'}
+                </p>
+                {trackedPreview && (
+                  <p className="mt-1.5 text-[13px] text-primary font-medium break-all">{trackedPreview}</p>
+                )}
+              </div>
+              {image && (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img src={`${image.url}?tr=w-800`} alt="" className="w-full max-h-72 object-cover border-t border-line" />
+              )}
+            </div>
+          </div>
+
+          <div className="card-surface p-4">
+            <div className="text-[11px] font-semibold text-muted uppercase tracking-widest mb-3">Tracked for you</div>
+            <div className="grid grid-cols-2 gap-2.5">
+              {[
+                { icon: MousePointerClick, label: 'Clicks' },
+                { icon: Users, label: 'Unique visitors' },
+                { icon: ShoppingBag, label: 'Sales' },
+                { icon: CircleDollarSign, label: 'Revenue' },
+              ].map(({ icon: Icon, label }) => (
+                <div key={label} className="flex items-center gap-2 text-body-sm text-ink">
+                  <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-primary-tint">
+                    <Icon className="h-3.5 w-3.5 text-primary" aria-hidden />
+                  </span>
+                  {label}
+                </div>
+              ))}
+            </div>
+            <p className="mt-3 text-[12px] text-muted leading-relaxed">
+              Likes and reach aren&apos;t tracked — SourceTruth measures what happens after the click.
+            </p>
+          </div>
+
+          <button
+            onClick={handleGenerate}
+            disabled={!canSubmit}
+            className="btn-primary w-full !py-3 text-[15px] inline-flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed disabled:shadow-none"
+          >
+            {loading ? (
+              <>
+                <Loader2 className="h-4 w-4 animate-spin" aria-hidden /> Saving…
+              </>
+            ) : (
+              <>
+                Save & get tracked link <ArrowRight className="h-4 w-4" aria-hidden />
+              </>
+            )}
+          </button>
+          {!canSubmit && !loading && (
+            <p className="text-center text-[12px] text-muted">
+              {!content.trim()
+                ? 'Write your post to continue'
+                : !destinationUrl
+                  ? 'Add a destination URL to continue'
+                  : overLimit
+                    ? `Shorten your post to ${MAX_POST_LENGTH.toLocaleString()} characters`
+                    : null}
+            </p>
+          )}
+        </aside>
       </div>
+    </div>
   )
 }

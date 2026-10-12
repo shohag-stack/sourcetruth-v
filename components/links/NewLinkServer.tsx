@@ -19,7 +19,10 @@ export default async function NewLinkServer() {
 
   return (
     <AppShell>
-      <NewLinkClient sites={sites ?? []} />
+      <NewLinkClient
+        sites={sites ?? []}
+        authorName={user?.user_metadata?.name ?? user?.email?.split("@")[0] ?? "You"}
+      />
     </AppShell>
   );
 }
