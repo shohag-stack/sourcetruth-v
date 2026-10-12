@@ -4,21 +4,33 @@ import { usePathname, useRouter } from 'next/navigation'
 import { cn, formatMoneyFull, formatNumber, trendLabel } from '@/lib/utils'
 import Image from 'next/image'
 import { createClient } from '@/utils/supabase/client'
+import {
+  CircleDollarSign,
+  FileText,
+  LayoutDashboard,
+  LogOut,
+  MousePointerClick,
+  Plug,
+  Receipt,
+  Settings,
+  SquarePen,
+  Users,
+} from 'lucide-react'
 
 const NAV_MAIN = [
-  { href: '/dashboard', label: 'Overview', icon: '◈' },
-  { href: '/links', label: 'New Post', icon: '+', highlight: true },
-  { href: '/posts', label: 'My Posts', icon: '◧' },
+  { href: '/dashboard', label: 'Overview', icon: LayoutDashboard },
+  { href: '/links', label: 'New Post', icon: SquarePen, highlight: true },
+  { href: '/posts', label: 'My Posts', icon: FileText },
   // { href: '/analytics', label: 'Analytics', icon: '◉' },
-  { href: '/visitors', label: 'Visitors', icon: '◉' },
-  { href: '/events', label: 'Events', icon: '⚡' },
-  { href: '/revenue', label: 'Revenue', icon: '$' },
-  { href: '/sales', label: 'Sales', icon: '$' },
+  { href: '/visitors', label: 'Visitors', icon: Users },
+  { href: '/events', label: 'Events', icon: MousePointerClick },
+  { href: '/revenue', label: 'Revenue', icon: CircleDollarSign },
+  { href: '/sales', label: 'Sales', icon: Receipt },
 ]
 
 const NAV_BOTTOM = [
-  { href: '/connect', label: 'Connections', icon: '⚡' },
-  { href: '/settings', label: 'Settings', icon: '⚙' },
+  { href: '/connect', label: 'Connections', icon: Plug },
+  { href: '/settings', label: 'Settings', icon: Settings },
 ]
 
 // Provided by AppShell (fetched server-side, no client round trip / no
@@ -72,7 +84,7 @@ export function Sidebar({ data }: { data: SidebarData | null }) {
             return (
               <Link key={item.href} href={item.href}
                 className="flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all gradient-brand text-white shadow-sm mb-1">
-                <span className="w-4 text-center font-bold text-base">{item.icon}</span>
+                <item.icon className="h-4 w-4 shrink-0" strokeWidth={2.25} aria-hidden />
                 {item.label}
               </Link>
             )
@@ -82,7 +94,7 @@ export function Sidebar({ data }: { data: SidebarData | null }) {
               className={cn('flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm transition-all',
                 active ? 'bg-[#EEF2FF] text-[#6366F1] font-medium' : 'text-[#475569] hover:text-[#0F172A] hover:bg-[#F8F9FC]'
               )}>
-              <span className={cn('w-4 text-center text-sm', active ? 'text-[#6366F1]' : 'text-[#94A3B8]')}>{item.icon}</span>
+              <item.icon className={cn('h-4 w-4 shrink-0', active ? 'text-[#6366F1]' : 'text-[#94A3B8]')} aria-hidden />
               {item.label}
             </Link>
           )
@@ -96,7 +108,7 @@ export function Sidebar({ data }: { data: SidebarData | null }) {
               className={cn('flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm transition-all',
                 active ? 'bg-[#EEF2FF] text-[#6366F1] font-medium' : 'text-[#475569] hover:text-[#0F172A] hover:bg-[#F8F9FC]'
               )}>
-              <span className={cn('w-4 text-center text-sm', active ? 'text-[#6366F1]' : 'text-[#94A3B8]')}>{item.icon}</span>
+              <item.icon className={cn('h-4 w-4 shrink-0', active ? 'text-[#6366F1]' : 'text-[#94A3B8]')} aria-hidden />
               {item.label}
             </Link>
           )
@@ -105,9 +117,9 @@ export function Sidebar({ data }: { data: SidebarData | null }) {
         {/* NEW — Sign out, same nav-item styling as everything above it */}
         <button
           onClick={handleSignOut}
-          className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm transition-all text-[#475569] hover:text-[#EF4444] hover:bg-[#FEF2F2]"
+          className="group w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm transition-all text-[#475569] hover:text-[#EF4444] hover:bg-[#FEF2F2]"
         >
-          <span className="w-4 text-center text-sm text-[#94A3B8]">⏻</span>
+          <LogOut className="h-4 w-4 shrink-0 text-[#94A3B8] group-hover:text-[#EF4444]" aria-hidden />
           Sign out
         </button>
       </nav>
