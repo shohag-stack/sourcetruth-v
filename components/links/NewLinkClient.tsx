@@ -28,6 +28,9 @@ interface Site {
 interface NewLinkClientProps {
   sites: Site[]
   authorName: string
+  postsUsed: number
+  postsLimit: number
+  planName: string
 }
 
 function parseUrl(value: string): URL | null {
@@ -39,7 +42,7 @@ function parseUrl(value: string): URL | null {
   }
 }
 
-export default function NewLinkClient({ sites, authorName }: NewLinkClientProps) {
+export default function NewLinkClient({ sites, authorName, postsUsed, postsLimit, planName }: NewLinkClientProps) {
   const router = useRouter()
   const [content, setContent] = useState('')
   const [destination, setDestination] = useState('')
@@ -74,7 +77,8 @@ export default function NewLinkClient({ sites, authorName }: NewLinkClientProps)
   const fitCount = fits.filter((f) => f.fits).length
   // Only blocked when the post fits nowhere at all
   const overLimit = Array.from(content).length > MAX_POST_LENGTH
-  const canSubmit = Boolean(content.trim() && destinationUrl && !overLimit && !loading && siteId)
+  const atPostLimit = postsUsed >= postsLimit
+  const canSubmit = Boolean(content.trim() && destinationUrl && !overLimit && !loading && siteId && !atPostLimit)
 
   // What the tracked link will look like — the real slug is generated on save
   const trackedPreview = destinationUrl
@@ -129,6 +133,9 @@ export default function NewLinkClient({ sites, authorName }: NewLinkClientProps)
           <p className="text-body-sm text-muted">
             Write it once, get a tracked link, then share it anywhere from Your Posts.
           </p>
+          <p className={`mt-1 text-[12px] tabular ${atPostLimit ? 'text-primary font-medium' : 'text-muted'}`}>
+            {postsUsed} of {postsLimit.toLocaleString()} posts used · {planName} plan
+          </p>
         </div>
         {sites.length > 1 && (
           <label className="flex items-center gap-2 text-body-sm text-muted">
@@ -148,6 +155,18 @@ export default function NewLinkClient({ sites, authorName }: NewLinkClientProps)
           </label>
         )}
       </div>
+
+      {atPostLimit && (
+        <div className="card p-4 mb-6 bg-primary-tint border-primary/20 text-body-sm text-ink flex items-center justify-between gap-3 flex-wrap">
+          <span className="flex items-center gap-2">
+            <Info className="h-4 w-4 text-primary shrink-0" aria-hidden />
+            You&apos;ve used all {postsLimit} posts on the {planName} plan. Delete an old post or upgrade to add more.
+          </span>
+          <a href="/settings/billing" className="btn-primary !py-1.5 !px-3 text-[12px]">
+            Upgrade
+          </a>
+        </div>
+      )}
 
       {sites.length === 0 && (
         <div className="card p-4 mb-6 bg-primary-tint border-primary/20 text-body-sm text-ink flex items-center gap-2">
@@ -413,7 +432,9 @@ export default function NewLinkClient({ sites, authorName }: NewLinkClientProps)
           </button>
           {!canSubmit && !loading && (
             <p className="text-center text-[12px] text-muted">
-              {!content.trim()
+              {atPostLimit
+                ? 'Post limit reached for your plan'
+                : !content.trim()
                 ? 'Write your post to continue'
                 : !destinationUrl
                   ? 'Add a destination URL to continue'

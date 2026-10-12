@@ -35,3 +35,36 @@ export async function deleteImagekitFile(fileId: string | null | undefined) {
     console.error("[imagekit] delete failed", fileId, err);
   }
 }
+
+export const MAX_IMAGE_BYTES = 5 * 1024 * 1024;
+
+// Every user uploads into their own folder (see /api/imagekit/auth)
+export const userImageFolder = (userId: string) => `/sourcetruth/posts/${userId}`;
+
+type VerifiedImage = { ok: true; url: string; fileId: string } | { ok: false; error: string };
+
+/**
+ * Looks the file up on ImageKit before a post is allowed to reference it.
+ * The client only sends a fileId, so without this a user could attach (and
+ * later delete) someone else's file, or skip the browser-side size check.
+ */
+export async function verifyUserImage(fileId: unknown, userId: string): Promise<VerifiedImage> {
+  if (typeof fileId !== "string" || !fileId || !PRIVATE_KEY) return { ok: false, error: "Invalid image" };
+
+  const res = await fetch(`https://api.imagekit.io/v1/files/${encodeURIComponent(fileId)}/details`, {
+    headers: { Authorization: `Basic ${Buffer.from(`${PRIVATE_KEY}:`).toString("base64")}` },
+    cache: "no-store",
+  });
+  if (!res.ok) return { ok: false, error: "Image not found — please upload it again." };
+
+  const file: { url?: string; filePath?: string; size?: number; fileType?: string } = await res.json();
+
+  if (!file.filePath?.startsWith(`${userImageFolder(userId)}/`) || !isOwnImageUrl(file.url)) {
+    return { ok: false, error: "Invalid image" };
+  }
+  if (file.fileType !== "image" || (file.size ?? 0) > MAX_IMAGE_BYTES) {
+    await deleteImagekitFile(fileId); // don't keep files that broke the rules
+    return { ok: false, error: "Images must be 5 MB or smaller." };
+  }
+  return { ok: true, url: file.url!, fileId };
+}

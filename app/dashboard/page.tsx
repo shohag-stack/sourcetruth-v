@@ -397,7 +397,7 @@ export default async function DashboardPage() {
               · Live from your account
             </p>
           </div>
-          <Link href="/links" className="btn-primary">
+          <Link href="/posts/new" className="btn-primary">
             New Post
           </Link>
         </div>
