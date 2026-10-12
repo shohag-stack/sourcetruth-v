@@ -3,6 +3,7 @@
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { PLATFORM_META, SocialChannel } from '@/lib/dummy-data'
+import { ImageUploader, type PostImage } from '@/components/posts/ImageUploader'
 
 const CHANNELS: SocialChannel[] = ['linkedin', 'twitter', 'instagram', 'facebook', 'threads', 'bluesky']
 
@@ -31,6 +32,7 @@ export default function NewLinkClient({ sites }: NewLinkClientProps) {
   const [destination, setDestination] = useState('')
   const [channel, setChannel] = useState<SocialChannel>('linkedin')
   const [campaign, setCampaign] = useState('')
+  const [image, setImage] = useState<PostImage | null>(null)
   const [siteId, setSiteId] = useState<string | null>(sites[0]?.id ?? null)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -54,6 +56,8 @@ export default function NewLinkClient({ sites }: NewLinkClientProps) {
           channel,
           campaign: campaign || null,
           site_id: siteId,
+          image_url: image?.url ?? null,
+          image_file_id: image?.fileId ?? null,
         }),
       })
 
@@ -157,6 +161,16 @@ export default function NewLinkClient({ sites }: NewLinkClientProps) {
                   {content.length}/{limit}
                 </span>
               </div>
+            </div>
+
+            <div className="card shadow-card p-5">
+              <label className="block text-[11px] font-semibold text-[#94A3B8] uppercase tracking-widest mb-2">
+                Image <span className="text-[#CBD5E1] font-normal normal-case">(optional)</span>
+              </label>
+              <ImageUploader value={image} onChange={setImage} />
+              <p className="text-[11px] text-[#94A3B8] mt-2">
+                Shown in your share kit — copy or download it when you post. 1200×628 works well everywhere.
+              </p>
             </div>
 
             <div className="card shadow-card p-5">

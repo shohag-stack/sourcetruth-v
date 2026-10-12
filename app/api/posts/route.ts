@@ -2,6 +2,7 @@
 import { createClient } from "@/utils/supabase/server";
 import { NextResponse } from "next/server";
 import { customAlphabet } from "nanoid";
+import { isOwnImageUrl } from "@/lib/imagekit";
 
 const nanoid = customAlphabet("abcdefghijklmnopqrstuvwxyz0123456789", 7);
 
@@ -17,7 +18,9 @@ export async function POST(request: Request) {
   // at click time, not a declared plan, so we no longer require picking
   // one when creating a post. Column stays on the table (see note below),
   // it just isn't collected or shown as attribution anymore.
-  const { content, channel, destination, campaign, site_id } = await request.json();
+  const { content, channel, destination, campaign, site_id, image_url, image_file_id } = await request.json();
+  // Images must come from our own ImageKit storage (uploaded via /api/imagekit/auth)
+  const hasImage = isOwnImageUrl(image_url);
   if (!content || !destination || !site_id) {
     return NextResponse.json(
       { error: "content, destination, site_id required" },
@@ -61,6 +64,8 @@ export async function POST(request: Request) {
       slug,
       tracked_link,
       status: "ready",
+      image_url: hasImage ? image_url : null,
+      image_file_id: hasImage && typeof image_file_id === "string" ? image_file_id : null,
     })
     .select()
     .single();
