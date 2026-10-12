@@ -28,13 +28,13 @@
        Stored as RGB channels (not hex) so Tailwind opacity modifiers
        like border-primary/30 or bg-primary/10 work. Use --primary-hex
        when you need a plain hex value in raw CSS (gradients etc). */
-    --primary: 237 63 1;
+    --primary: 237 63 1;   /* no #, no commas */
     --primary-hex: #ED3F01;
     --primary-hover: #D63A00;
     --primary-tint: #FFF3EF;
 
     /* Success — save actions, positive revenue, confirmations */
-    --success: 26 167 26;
+    --success: #1AA71A;
     --success-hex: #1AA71A;
     --success-hover: #158A15;
     --success-tint: #F1FFF1;
