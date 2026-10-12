@@ -20,4 +20,6 @@ export interface DbPost {
   unique_clicks: number
   total_conversions: number
   revenue_cents: number
+  image_url?: string | null
+  image_file_id?: string | null
 }

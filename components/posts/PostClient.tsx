@@ -7,6 +7,9 @@ import { DbPost } from "@/types/posts";
 import { formatMoneyFull, formatNumber, timeAgo } from "@/lib/utils";
 import { metaFor } from "@/lib/metaFor";
 import { countryFlag } from "@/lib/countryFlag";
+import { Share2, Trash2 } from "lucide-react";
+import { ShareDialog } from "./ShareDialog";
+import type { PostImage } from "./ImageUploader";
 
 const STATUS_STYLES: Record<string, string> = {
   posted: "badge-success",
@@ -45,6 +48,10 @@ export default function PostClient({
   const [copiedId, setCopiedId] = useState<string | null>(null);
   const [copiedLinkId, setCopiedLinkId] = useState<string | null>(null);
   const [filter, setFilter] = useState<"all" | "ready" | "posted">("all");
+  const [sharingId, setSharingId] = useState<string | null>(null);
+  const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
+  const [deleting, setDeleting] = useState(false);
+  const [actionError, setActionError] = useState<string | null>(null);
 
   const maxRevenue = Math.max(1, ...posts.map((p) => p.revenue_cents));
 
@@ -94,8 +101,42 @@ export default function PostClient({
   }
 
 
+  async function setImage(id: string, image: PostImage | null) {
+    const res = await fetch(`/api/posts/${id}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ image }),
+    });
+    if (!res.ok) {
+      setActionError("Couldn't save the image. Please try again.");
+      return;
+    }
+    const updated: DbPost = await res.json();
+    setPosts((p) => p.map((post) => (post.id === id ? { ...post, ...updated } : post)));
+  }
+
+  async function deletePost(id: string) {
+    setDeleting(true);
+    setActionError(null);
+    const res = await fetch(`/api/posts/${id}`, { method: "DELETE" });
+    setDeleting(false);
+    setConfirmDeleteId(null);
+    if (!res.ok) {
+      setActionError("Couldn't delete the post. Please try again.");
+      return;
+    }
+    setPosts((p) => p.filter((post) => post.id !== id));
+    router.refresh();
+  }
+
+  const sharingPost = posts.find((p) => p.id === sharingId) ?? null;
+  const deletingPost = posts.find((p) => p.id === confirmDeleteId) ?? null;
+
   return (
       <div className="p-8">
+        {actionError && (
+          <div className="card p-3 mb-4 border-[#FCA5A5] bg-[#FEF2F2] text-[13px] text-[#B91C1C]">{actionError}</div>
+        )}
         {/* Header */}
         <div className="flex items-center justify-between mb-6">
           <div>
@@ -152,6 +193,17 @@ export default function PostClient({
 
             return (
               <div key={post.id} className="card p-4 flex flex-col">
+                {post.image_url && (
+                  <button
+                    type="button"
+                    onClick={() => setSharingId(post.id)}
+                    className="-mx-4 -mt-4 mb-3 block overflow-hidden rounded-t-2xl border-b border-line bg-surface-muted"
+                    aria-label="Open share kit"
+                  >
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img src={`${post.image_url}?tr=w-640,h-336,fo-auto`} alt="" className="w-full aspect-[1.91/1] object-cover" />
+                  </button>
+                )}
                 <div className="flex items-center justify-between gap-2 mb-3 flex-wrap">
                   {topCountries.length > 0 && (
                     <div className="flex items-center gap-1.5">
@@ -285,6 +337,12 @@ export default function PostClient({
                 {/* Actions */}
                 <div className="flex items-center gap-2 flex-wrap mt-auto pt-1">
                   <button
+                    onClick={() => setSharingId(post.id)}
+                    className="btn-primary !px-2.5 !py-1.5 text-[12px] inline-flex items-center gap-1.5"
+                  >
+                    <Share2 className="h-3.5 w-3.5" aria-hidden /> Share
+                  </button>
+                  <button
                     onClick={() => copyContent(post)}
                     className="btn-ghost !px-2.5 !py-1.5 text-[12px] border border-line"
                   >
@@ -304,6 +362,14 @@ export default function PostClient({
                       Mark posted ✓
                     </button>
                   )}
+                  <button
+                    onClick={() => setConfirmDeleteId(post.id)}
+                    className="ml-auto flex h-8 w-8 items-center justify-center rounded-lg text-muted hover:text-red-500 hover:bg-[#FEF2F2] transition-colors"
+                    aria-label="Delete post"
+                    title="Delete post"
+                  >
+                    <Trash2 className="h-4 w-4" aria-hidden />
+                  </button>
                 </div>
 
                 {/* NEW — link to the per-post analytics page */}
@@ -322,6 +388,49 @@ export default function PostClient({
             );
           })}
         </div>
+
+        {sharingPost && (
+          <ShareDialog
+            post={sharingPost}
+            onClose={() => setSharingId(null)}
+            onImageChange={(image) => setImage(sharingPost.id, image)}
+            onMarkPosted={() => {
+              markPosted(sharingPost.id);
+              setSharingId(null);
+            }}
+          />
+        )}
+
+        {deletingPost && (
+          <div
+            className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4"
+            onClick={() => !deleting && setConfirmDeleteId(null)}
+            role="dialog"
+            aria-modal="true"
+            aria-label="Delete post"
+          >
+            <div className="card w-full max-w-sm p-6" onClick={(e) => e.stopPropagation()}>
+              <h2 className="text-heading-sm text-ink mb-2">Delete this post?</h2>
+              <p className="text-body-sm text-muted mb-1 line-clamp-2">&ldquo;{deletingPost.content}&rdquo;</p>
+              <p className="text-body-sm text-muted mb-5">
+                Its click history and image are deleted. Any revenue stays in your totals, just no longer credited to
+                this post. The tracked link keeps working but won&apos;t be attributed. This can&apos;t be undone.
+              </p>
+              <div className="flex justify-end gap-2">
+                <button onClick={() => setConfirmDeleteId(null)} disabled={deleting} className="btn-ghost border border-line">
+                  Cancel
+                </button>
+                <button
+                  onClick={() => deletePost(deletingPost.id)}
+                  disabled={deleting}
+                  className="rounded-xl bg-red-500 px-4 py-2.5 text-sm font-medium text-white hover:bg-red-600 disabled:opacity-60"
+                >
+                  {deleting ? "Deleting…" : "Delete post"}
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
 
         {filtered.length === 0 && (
           <div className="card p-12 text-center">
