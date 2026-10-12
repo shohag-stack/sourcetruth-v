@@ -22,4 +22,5 @@ export interface DbPost {
   revenue_cents: number
   image_url?: string | null
   image_file_id?: string | null
+  x_content?: string | null // short version used when sharing to X
 }

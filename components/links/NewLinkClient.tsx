@@ -16,7 +16,8 @@ import {
   Users,
 } from 'lucide-react'
 import { ImageUploader, type PostImage } from '@/components/posts/ImageUploader'
-import { MAX_POST_LENGTH, NETWORKS, measure } from '@/lib/networks'
+import { MAX_POST_LENGTH, NETWORKS, NETWORK_BY_KEY, measure } from '@/lib/networks'
+import { FaXTwitter } from 'react-icons/fa6'
 
 interface Site {
   id: string
@@ -45,6 +46,9 @@ export default function NewLinkClient({ sites, authorName }: NewLinkClientProps)
   const [destinationTouched, setDestinationTouched] = useState(false)
   const [campaign, setCampaign] = useState('')
   const [image, setImage] = useState<PostImage | null>(null)
+  // Short version used only for X (free accounts: 280 chars incl. the link)
+  const [xContent, setXContent] = useState('')
+  const [xOpen, setXOpen] = useState(false)
   const [siteId, setSiteId] = useState<string | null>(sites[0]?.id ?? null)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -58,7 +62,15 @@ export default function NewLinkClient({ sites, authorName }: NewLinkClientProps)
     url.searchParams.set('st', 'xxxxxxx')
     return url.toString()
   }, [destinationUrl])
-  const fits = NETWORKS.map((n) => ({ network: n, ...measure(n, content, sampleTrackedLink) }))
+  // X uses its short version when there is one; everything else uses the full post
+  const fits = NETWORKS.map((n) => ({
+    network: n,
+    ...measure(n, n.key === 'x' && xContent.trim() ? xContent : content, sampleTrackedLink),
+  }))
+  const xMain = measure(NETWORK_BY_KEY.x, content, sampleTrackedLink)
+  const xShort = measure(NETWORK_BY_KEY.x, xContent, sampleTrackedLink)
+  const showXVersion = xOpen || xContent.trim() !== ''
+  const xVersionTooLong = xContent.trim() !== '' && !xShort.fits
   const fitCount = fits.filter((f) => f.fits).length
   // Only blocked when the post fits nowhere at all
   const overLimit = Array.from(content).length > MAX_POST_LENGTH
@@ -87,6 +99,7 @@ export default function NewLinkClient({ sites, authorName }: NewLinkClientProps)
           site_id: siteId,
           image_url: image?.url ?? null,
           image_file_id: image?.fileId ?? null,
+          x_content: xContent.trim() || null,
         }),
       })
 
@@ -209,6 +222,66 @@ export default function NewLinkClient({ sites, authorName }: NewLinkClientProps)
                 })}
               </div>
             </div>
+
+            {/* Too long for X → offer a short version just for X */}
+            {content.trim() && !xMain.fits && !showXVersion && (
+              <button
+                type="button"
+                onClick={() => setXOpen(true)}
+                className="mt-3 w-full flex items-center justify-between gap-3 rounded-xl border border-dashed border-line px-3.5 py-2.5 text-left hover:border-ink/30 hover:bg-surface-muted transition-colors"
+              >
+                <span className="flex items-center gap-2 text-body-sm text-ink">
+                  <FaXTwitter className="h-3.5 w-3.5" aria-hidden />
+                  Too long for X — write a short version just for X
+                </span>
+                <span className="text-[12px] font-medium text-primary whitespace-nowrap">Add X version →</span>
+              </button>
+            )}
+
+            {showXVersion && (
+              <div className="mt-3 rounded-xl border border-line bg-surface-muted p-3.5">
+                <div className="flex items-center justify-between gap-3 mb-2">
+                  <span className="flex items-center gap-2 text-[12px] font-semibold text-ink">
+                    <FaXTwitter className="h-3.5 w-3.5" aria-hidden /> X version
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setXContent('')
+                      setXOpen(false)
+                    }}
+                    className="text-[12px] text-muted hover:text-ink"
+                  >
+                    Remove
+                  </button>
+                </div>
+                <textarea
+                  value={xContent}
+                  onChange={(e) => setXContent(e.target.value)}
+                  placeholder="A shorter take for X…"
+                  rows={3}
+                  autoFocus
+                  className="w-full resize-none rounded-lg border border-line bg-surface px-3 py-2 text-[14px] leading-relaxed text-ink placeholder-muted outline-none focus:border-primary focus:ring-2 focus:ring-primary-tint"
+                />
+                <div className="mt-1.5 flex items-center justify-between gap-3 text-[12px]">
+                  <span className="text-muted">
+                    Used when you share to X. Other networks get the full post.
+                  </span>
+                  <span className={`tabular font-medium whitespace-nowrap ${xVersionTooLong ? 'text-red-500' : 'text-muted'}`}>
+                    {xShort.remaining >= 0 ? `${xShort.remaining} left` : `${Math.abs(xShort.remaining)} over`}
+                  </span>
+                </div>
+                {!xContent && (
+                  <button
+                    type="button"
+                    onClick={() => setXContent(content)}
+                    className="mt-2 text-[12px] font-medium text-primary hover:text-primary-hover"
+                  >
+                    Start from my post and trim it down
+                  </button>
+                )}
+              </div>
+            )}
           </section>
 
           {/* Image */}

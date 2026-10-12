@@ -9,7 +9,7 @@ interface Params {
   }>;
 }
 
-// Updates whichever of { status, image } the body includes
+// Updates whichever of { status, image, x_content } the body includes
 export async function PATCH(request: Request, { params }: Params) {
   const { id } = await params;
 
@@ -29,6 +29,11 @@ export async function PATCH(request: Request, { params }: Params) {
   if (body.status !== undefined) {
     update.status = body.status;
     update.posted_at = body.status === "posted" ? new Date().toISOString() : null;
+  }
+
+  // Short X version — empty string clears it
+  if (body.x_content !== undefined) {
+    update.x_content = typeof body.x_content === "string" && body.x_content.trim() ? body.x_content.trim().slice(0, 1000) : null;
   }
 
   // image: { url, fileId } to set/replace, or null to remove
