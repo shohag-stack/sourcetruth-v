@@ -41,6 +41,16 @@
     }
   }
 
+  // Explicit tagging (?utm_source=, ?ref=, ?via=) beats the referrer —
+  // it survives in-app browsers and apps that strip document.referrer,
+  // which would otherwise show up as "direct".
+  function getVisitSource() {
+    const p = new URLSearchParams(window.location.search);
+    const tagged = p.get("utm_source") || p.get("ref") || p.get("via");
+    if (tagged) return tagged.trim().toLowerCase();
+    return parseReferrerSource(document.referrer);
+  }
+
   // Client-side UA parse — mirrors /api/click's server-side parseUA so
   // device/os/browser are known for EVERY visitor, not just ones who
   // hit that endpoint (i.e. arrived via a tracked ?st= link).
@@ -86,11 +96,13 @@
     }
   }
 
+  const currentSource = getVisitSource();
+
   let touch = getTouch();
   if (!touch) {
     const { device, browser, os } = parseUA(navigator.userAgent);
     touch = {
-      source: parseReferrerSource(document.referrer),
+      source: currentSource,
       device: device,
       browser: browser,
       os: os,
@@ -109,16 +121,27 @@
     localStorage.setItem(TOUCH_KEY, JSON.stringify(touch));
   }
 
+  // Last NON-direct source — a returning visitor who types the URL or
+  // uses a bookmark shouldn't erase the channel that actually brought
+  // them (last-non-direct-click, same as GA). Backfilled from the
+  // first-touch source for records written before this field existed.
+  if (currentSource !== "direct") {
+    touch.last_source = currentSource;
+    localStorage.setItem(TOUCH_KEY, JSON.stringify(touch));
+  } else if (!touch.last_source && touch.source && touch.source !== "direct") {
+    touch.last_source = touch.source;
+    localStorage.setItem(TOUCH_KEY, JSON.stringify(touch));
+  }
+
   // ── UTM / tracked link — post-level attribution, SourceTruth's own
   // feature. Unchanged: overwrites on every new ?st= link clicked
   // (last-touch for POST credit specifically, separate from the
   // first-touch general record above). ──
   const params = new URLSearchParams(window.location.search);
   const ref = params.get("st");
-  const currentSource = parseReferrerSource(document.referrer);
 
   if (ref) {
-    const source = parseReferrerSource(document.referrer);
+    const source = currentSource;
     localStorage.setItem(
       STORAGE_KEY,
       JSON.stringify({ slug: ref, source: source, captured_at: Date.now() }),
@@ -166,6 +189,7 @@
           existing.city = data.city ?? null;
           touch = existing;
           localStorage.setItem(TOUCH_KEY, JSON.stringify(existing));
+          attachRefToCheckoutLinks();
         }
       })
       .catch(() => {});
@@ -318,16 +342,43 @@
     return LS_LINK_PATTERN.test(href);
   }
 
-  function attachRefToCheckoutLinks() {
-    const slug = getStoredSlug();
-    // post-click source wins if this visit came through a tracked link;
-    // otherwise fall back to the general first-touch source
-
-    const clickSource = getStoredSource(); // Source of the tracked link
-    const firstSource = touch.source; // Visitor's first-touch source
-
+  // Every attribution field a Lemon Squeezy checkout should carry, as
+  // custom_data keys. Built fresh at call time so country/city from a
+  // late /api/pageview response are included.
+  function getCheckoutData() {
     const t = getTouch() || touch;
-    const patchTag = slug || "general";
+    const data = {};
+    const slug = getStoredSlug();
+    if (slug) data.st_ref = slug;
+    if (SITE_KEY) data.st_site = SITE_KEY;
+    // Lets the app match this purchase back to the exact live session
+    // that made it (see Realtime Visitors).
+    data.st_session_id = sessionId;
+    // Source of the tracked-link click, if this visitor came via one
+    const clickSource = getStoredSource();
+    if (clickSource) data.st_click_source = clickSource;
+    data.st_current_source = currentSource;
+    if (t.source) data.st_first_source = t.source;
+    if (t.last_source) data.st_last_source = t.last_source;
+    data.st_device = t.device;
+    data.st_os = t.os;
+    data.st_browser = t.browser;
+    data.st_first_seen = String(t.first_seen_at);
+    data.st_touchpoints = String(t.touchpoints || 1);
+    if (t.country) data.st_country = t.country;
+    if (t.city) data.st_city = t.city;
+    return data;
+  }
+
+  // Sites that create checkouts server-side (Lemon Squeezy API
+  // createCheckout) have no <a href> for us to patch — they call this
+  // from the browser and pass the result into checkout_data.custom.
+  window.SourceTruth.getCheckoutData = getCheckoutData;
+
+  function attachRefToCheckoutLinks() {
+    const data = getCheckoutData();
+    // Re-patch once country/city arrive or a new tracked link is stored
+    const patchTag = [data.st_ref || "general", data.st_country || ""].join("|");
 
     document.querySelectorAll("a[href]").forEach(function (a) {
       const href = a.getAttribute("href");
@@ -336,56 +387,9 @@
 
       try {
         const url = new URL(href, window.location.href);
-        if (slug) url.searchParams.set("checkout[custom][st_ref]", slug);
-        if (SITE_KEY)
-          url.searchParams.set("checkout[custom][st_site]", SITE_KEY);
-
-        // Lets the app match this purchase back to the exact live
-        // session that made it (see Realtime Visitors — shows a real
-        // masked email instead of the anonymized pseudonym for
-        // sessions that converted).
-        url.searchParams.set("checkout[custom][st_session_id]", sessionId);
-
-        if (clickSource) {
-          url.searchParams.set(
-            "checkout[custom][st_click_source]",
-            clickSource,
-          );
-        }
-
-        url.searchParams.set(
-          "checkout[custom][st_current_source]",
-          currentSource,
-        );
-
-        if (firstSource) {
-          url.searchParams.set(
-            "checkout[custom][st_first_source]",
-            firstSource,
-          );
-        }
-
-        if (t) {
-          url.searchParams.set("checkout[custom][st_device]", t.device);
-          url.searchParams.set("checkout[custom][st_os]", t.os);
-          url.searchParams.set("checkout[custom][st_browser]", t.browser);
-          url.searchParams.set(
-            "checkout[custom][st_first_seen]",
-            String(t.first_seen_at),
-          );
-          url.searchParams.set(
-            "checkout[custom][st_touchpoints]",
-            String(t.touchpoints || 1),
-          );
-        }
-
-        if (t.country) {
-          url.searchParams.set("checkout[custom][st_country]", t.country);
-        }
-        if (t.city) {
-          url.searchParams.set("checkout[custom][st_city]", t.city);
-        }
-
+        Object.keys(data).forEach(function (key) {
+          url.searchParams.set("checkout[custom][" + key + "]", data[key]);
+        });
         a.setAttribute("href", url.toString());
         a.dataset.stPatched = patchTag;
       } catch (e) {
