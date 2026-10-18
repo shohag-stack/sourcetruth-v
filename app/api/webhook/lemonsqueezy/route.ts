@@ -78,6 +78,8 @@ export async function POST(request: Request) {
   const stClickSource: string | undefined = customData.st_click_source;
   const stFirstSource: string | undefined = customData.st_first_source;
   const stCurrentSource: string | undefined = customData.st_current_source;
+  // Last non-direct source across all of the visitor's sessions.
+  const stLastSource: string | undefined = customData.st_last_source;
 
   // DataFast-style fields, present for every sale now (not just ones
   // with a tracked-link ref).
@@ -142,8 +144,22 @@ export async function POST(request: Request) {
   }
 
   const postId = post?.id ?? null;
-  const conversionSource = stCurrentSource ?? stClickSource ?? post?.channel ?? visitor?.last_source ?? null;
   const firstSource = stFirstSource ?? visitor?.first_source ?? (post ? post.channel : null);
+  // Last-non-direct attribution: "direct" only means the checkout page
+  // had no external referrer (typed URL, bookmark, internal nav, in-app
+  // browser), so it must never override a real channel we already know
+  // for this visitor. It's only used when nothing better exists.
+  const known = (s: string | null | undefined) =>
+    s && s !== "direct" ? s : undefined;
+  const conversionSource =
+    known(stCurrentSource) ??
+    known(stClickSource) ??
+    known(stLastSource) ??
+    known(post?.channel) ??
+    known(visitor?.last_source) ??
+    known(firstSource) ??
+    stCurrentSource ??
+    null;
 
   // ── days_to_convert — computed here at insert time so it's stored,
   // not derived on every page render. Pinned to the same "now" we use
