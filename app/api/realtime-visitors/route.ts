@@ -11,7 +11,7 @@ const RECENT_WINDOW_MS = 24 * 60 * 60 * 1000;
 // off the bottom as new ones push in ahead of them (list is sorted
 // newest-first and sliced to this length) — no separate "collapse"
 // logic needed, it's just a cap on the sorted result.
-const MAX_VISIBLE = 5;
+const MAX_VISIBLE = 60;
 
 export async function GET() {
   const supabase = await createClient();
