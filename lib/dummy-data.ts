@@ -240,7 +240,9 @@ export const DUMMY_OVERVIEW = {
 // or a bare hostname from an unrecognized platform are both real
 // possibilities now that source comes from actual referrers, not a
 // fixed enum.
-export const DIRECT_META = { name: "Direct", color: "#5B5B5B", bgColor: "#F7F6F4", icon: "🌏" };
+// "Unknown" because no referrer also covers links with rel="noreferrer"
+// (e.g. the Sanity template marketplace), not just typed URLs/bookmarks.
+export const DIRECT_META = { name: "Direct / Unknown", color: "#5B5B5B", bgColor: "#F7F6F4", icon: "🌏" };
 export const FALLBACK_META = { name: "Other", color: "#5B5B5B", bgColor: "#F7F6F4", icon: "●" };
 
 // ─── Social platform meta ─────────────────────────────────────────────────────

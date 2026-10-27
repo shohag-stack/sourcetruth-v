@@ -42,7 +42,7 @@ export async function GET() {
   const { data: pageviews } = await supabase
     .from("pageviews")
     .select(
-      "session_id, path, country, device, browser, os, referrer, visited_at, is_new_visitor",
+      "session_id, path, country, device, browser, os, referrer, source, visited_at, is_new_visitor",
     )
     .eq("site_id", site.id)
     .gte("visited_at", since)
@@ -57,7 +57,7 @@ export async function GET() {
         const { data: recent } = await supabase
           .from("pageviews")
           .select(
-            "session_id, path, country, device, browser, os, referrer, visited_at, is_new_visitor",
+            "session_id, path, country, device, browser, os, referrer, source, visited_at, is_new_visitor",
           )
           .eq("site_id", site.id)
           .gte("visited_at", recentSince)
@@ -91,11 +91,18 @@ export async function GET() {
   // session shows that session's ORIGINAL (first) EXTERNAL referrer,
   // not whatever internal page they came from.
   const firstReferrerBySession = new Map<string, string | null>();
+  // Tagged source (?ref= etc.) from the session's first pageview — the
+  // badge prefers it, since sites with rel="noreferrer" send no referrer.
+  const firstSourceBySession = new Map<string, string | null>();
   const pageviewCountBySession = new Map<string, number>();
   finalRows.forEach((r) => {
     if (!firstReferrerBySession.has(r.session_id)) {
       const referrer = isSameSiteReferrer(r.referrer) ? null : r.referrer ?? null;
       firstReferrerBySession.set(r.session_id, referrer);
+      firstSourceBySession.set(
+        r.session_id,
+        r.source && r.source !== "direct" ? r.source : null,
+      );
     }
     pageviewCountBySession.set(
       r.session_id,
@@ -169,6 +176,7 @@ export async function GET() {
     browser: r.browser,
     os: r.os,
     referrer: firstReferrerBySession.get(r.session_id) ?? null,
+    source: firstSourceBySession.get(r.session_id) ?? null,
     visitedAt: r.visited_at,
     isNewVisitor: r.is_new_visitor,
     // how many pages this session has hit within the current window —

@@ -20,6 +20,7 @@ type Visitor = {
   browser: string | null;
   os: string | null;
   referrer: string | null;
+  source?: string | null;
   visitedAt: string;
   isNewVisitor: boolean;
   pageviewsThisSession: number;
@@ -127,7 +128,7 @@ export function RealtimeVisitors() {
               const identity = identityFor(v.sessionId);
               const knownEmail = v.customerEmail ?? v.identifiedEmail ?? null;
               const displayName = knownEmail ?? identity.name;
-              const source = metaFor(sourceFromReferrer(v.referrer));
+              const source = metaFor(v.source ?? sourceFromReferrer(v.referrer));
 
               return (
                 <motion.div

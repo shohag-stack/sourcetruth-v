@@ -177,6 +177,7 @@
         session_id: sessionId,
         path: window.location.pathname,
         referrer: document.referrer,
+        source: currentSource,
         screen_width: window.screen.width,
       }),
     })

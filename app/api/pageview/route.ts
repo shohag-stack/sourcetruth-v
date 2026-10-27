@@ -55,7 +55,7 @@ export async function OPTIONS() {
 
 export async function POST(req: NextRequest) {
   try {
-    const { site_key, session_id, path, referrer, screen_width } =
+    const { site_key, session_id, path, referrer, source, screen_width } =
       await req.json();
 
     const supabase = await createServiceClient();
@@ -166,6 +166,12 @@ export async function POST(req: NextRequest) {
       session_id,
       path: path ?? "/",
       referrer: referrer ?? null,
+      // What track.js resolved (tag > referrer host > "direct"). Capped
+      // since it can come straight from a ?ref= the visitor controls.
+      source:
+        typeof source === "string" && source.trim()
+          ? source.trim().toLowerCase().slice(0, 100)
+          : null,
       ip_hash: ipHash,
       country,
       city,

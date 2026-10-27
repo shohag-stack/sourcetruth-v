@@ -116,6 +116,7 @@ type PageviewRow = {
   duration_seconds: number | null;
   visited_at: string;
   referrer: string | null;
+  source: string | null;
 };
 
 type ConversionRow = {
@@ -308,7 +309,7 @@ export default async function TrafficAnalyticsPage({
     let q = supabase
       .from("pageviews")
       .select(
-        "session_id, path, country, device, browser, os, is_bounce, is_new_visitor, duration_seconds, visited_at, referrer",
+        "session_id, path, country, device, browser, os, is_bounce, is_new_visitor, duration_seconds, visited_at, referrer, source",
       )
       .eq("site_id", siteId);
 
@@ -319,6 +320,8 @@ export default async function TrafficAnalyticsPage({
     if (filterPath) q = q.eq("path", filterPath);
     if (filterReferrer === "direct") {
       q = q.or("referrer.is.null,referrer.eq.");
+      // A tagged visit (?ref=sanity) with no referrer isn't Direct.
+      q = q.or("source.is.null,source.eq.direct");
     }
     if (since) q = q.gte("visited_at", since.toISOString());
 
@@ -429,7 +432,12 @@ export default async function TrafficAnalyticsPage({
   // else in the app that deals with sources.
   const referrerCounts = new Map<string, number>();
   rows.forEach((r) => {
-    const src = sourceFromReferrer(r.referrer ?? null);
+    // Prefer the tagged source track.js resolved — it survives sites that
+    // strip the referrer (rel="noreferrer"); older rows don't have one.
+    const src =
+      r.source && r.source !== "direct"
+        ? r.source
+        : sourceFromReferrer(r.referrer ?? null);
     referrerCounts.set(src, (referrerCounts.get(src) ?? 0) + 1);
   });
   const topReferrers = Array.from(referrerCounts.entries())
