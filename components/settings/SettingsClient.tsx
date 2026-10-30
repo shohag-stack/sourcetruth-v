@@ -54,7 +54,7 @@ function cleanDomain(input: string): string {
 }
 
 function snippetFor(siteKey: string): string {
-  return `<script src="https://sourcetruth.io/track.js" data-site="${siteKey}"></script>`
+  return `<script src="https://sourcetruth.rayso.studio/track.js" data-site="${siteKey}"></script>`
 }
 
 // ─── Main Component ───────────────────────────────────────────

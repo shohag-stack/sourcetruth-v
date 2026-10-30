@@ -3,7 +3,10 @@
   const TOUCH_KEY = "st_touch"; // general first-touch record, for every visitor, DataFast-style
   const SESSION_KEY = "st_session_id";
   const THIRTY_DAYS = 30 * 24 * 60 * 60 * 1000;
-  const ORIGIN = "https://sourcetruth-v.vercel.app";
+  // Report back to wherever this script was loaded from, so a domain change needs no edit here
+  const ORIGIN = document.currentScript?.src
+    ? new URL(document.currentScript.src).origin
+    : "https://sourcetruth.rayso.studio";
   const SITE_KEY =
     document.currentScript?.getAttribute("data-site") || window.ST_SITE_KEY;
 

@@ -1,3 +1,5 @@
+import { initOpenNextCloudflareForDev } from "@opennextjs/cloudflare";
+
 export default {
   // New Post moved from /links to /posts/new — keep old bookmarks working
   async redirects() {
@@ -11,3 +13,6 @@ export default {
     ],
   },
 };
+
+// Lets `next dev` use the Cloudflare bindings locally
+initOpenNextCloudflareForDev();

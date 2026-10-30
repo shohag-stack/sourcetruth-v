@@ -152,8 +152,8 @@ export default function ConnectClient({ site, connections }: ConnectClientProps)
                     </div>
 
                       <div className="bg-surface-muted rounded-xl p-4 font-mono text-[11px] text-body leading-relaxed relative overflow-x-auto">
-                        <pre>{`sourcetruth-v.vercel.app/api/webhook/lemonsqueezy`}</pre>
-                        <button onClick={()=>copySnippet('sourcetruth-v.vercel.app/api/webhook/lemonsqueezy')}
+                        <pre>{`https://sourcetruth.rayso.studio/api/webhook/lemonsqueezy`}</pre>
+                        <button onClick={()=>copySnippet('https://sourcetruth.rayso.studio/api/webhook/lemonsqueezy')}
                           className="absolute top-3 right-3 bg-surface border border-line text-body hover:text-ink text-[11px] px-3 py-1.5 rounded-lg transition-colors shadow-card">
                           {copied ? '✓ Copied' : 'Copy'}
                         </button>
@@ -198,8 +198,8 @@ export default function ConnectClient({ site, connections }: ConnectClientProps)
                 Paste this snippet before <code className="bg-surface-muted text-primary px-1 rounded text-xs">&lt;/head&gt;</code> on every page of your website.
               </p>
               <div className="bg-surface-muted rounded-xl p-4 font-mono text-[11px] text-body leading-relaxed relative overflow-x-auto">
-                <pre>{`<script src="https://sourcetruth-v.vercel.app/track.js" data-site="${site.site_key}"></script>`}</pre>
-                <button onClick={()=>copySnippet(`<script src="https://sourcetruth-v.vercel.app/track.js" data-site="${site.site_key}"></script>`)}
+                <pre>{`<script src="https://sourcetruth.rayso.studio/track.js" data-site="${site.site_key}"></script>`}</pre>
+                <button onClick={()=>copySnippet(`<script src="https://sourcetruth.rayso.studio/track.js" data-site="${site.site_key}"></script>`)}
                   className="absolute top-3 right-3 bg-surface border border-line text-body hover:text-ink text-[11px] px-3 py-1.5 rounded-lg transition-colors shadow-card">
                   {copied ? '✓ Copied' : 'Copy'}
                 </button>
